@@ -120,7 +120,7 @@ export function PrivateImage({ path, alt }: { path: string; alt: string }) {
   if (failed) return <p role="alert" className="text-destructive text-sm">{t("imageFailed")}</p>;
   // A private blob address, which Next's image optimiser can't fetch.
   // eslint-disable-next-line @next/next/no-img-element
-  return source ? <img src={source} alt={alt} className="max-h-96 max-w-full rounded-lg border" /> : <div className="bg-muted h-40 w-full max-w-md animate-pulse rounded-lg" />;
+  return source ? <img src={source} alt={alt} decoding="async" className="max-h-96 max-w-full rounded-lg border" /> : <div className="bg-muted h-40 w-full max-w-md animate-pulse rounded-lg" />;
 }
 
 function StimulusView({ stimulus }: { stimulus: Stimulus }) {

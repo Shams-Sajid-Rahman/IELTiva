@@ -100,18 +100,32 @@ Student and admin dashboards, user and role management, course and module manage
 
 **Still open:** production file storage needs the Cloudflare R2 provider, and real Listening recordings are needed from the content team.
 
-### Phase 5: AI service and Writing Assessment (2 to 3 weeks)
+### Phase 5: AI service and assessment
 
-- AI service, route table, Anthropic provider, usage events and price table
-- BullMQ pipeline, prompts, schemas, retry and credit release
-- Writing editor and report, with all three visibility states built from fixtures
-- Band release gate, enforced in the API
-- Calibration tables, marker interface and evaluation runner
-- AI usage dashboard
+Built, and not yet run against real services, because the owner asked for no testing in this phase:
 
-**Done when:** changing a tier's model needs only configuration. A test proves no public response contains a band while the gate is closed. Every call appears with cost in the dashboard, and injection samples are handled.
+- Provider-independent AI service, versioned prompts, usage and cost tracking
+- Writing assessment for Academic Task 1, General Training Task 1 and Task 2, in feedback-only mode
+- Speaking transcription through Azure, three-criterion feedback, and separate experimental pronunciation measures
+- AI tutor with streaming and conversation history
+- BullMQ worker with job status, retries, idempotency and recording retention
+- Human calibration: two independent markers, adjudication, frozen datasets, AI comparison and a band release gate
+- Consent, 90-day recording retention by default, and student deletion of recordings
 
-**This phase doesn't wait for calibration results.** It finishes with bands hidden.
+**Needs before use:** Redis, an Anthropic key, an Azure Speech key, then real testing. The speech trial with Bangladeshi learners and calibration with two qualified markers still need to happen.
+
+### Owner's Phases 6 to 9 (built)
+
+The owner set a new order after Phase 5. These replace "Phase 7: Prepaid packages and payments" below and the code part of "Phase 8: Hardening". Mock test refinement, and the launch steps in that Phase 8, are still to do.
+
+Built, and **not run**, because the owner asked for no manual or automated testing in these phases. Static checks only.
+
+- **Phase 6, payments:** prepaid packages, provider-independent gateways (SSLCOMMERZ, aamarPay, Stripe), server-side verification, refunds, revenue reports. Sandbox only. See `PAYMENTS.md`.
+- **Phase 7, analytics:** student and admin dashboards from real data, goals, reminders, rule-based recommendations, suggested schedules. Band trends stay empty until a verified conversion table, reviewed scores or released AI bands exist.
+- **Phase 8, infrastructure:** worker queues, Cloudflare R2, ffmpeg audio checks, caching, correlation IDs, health endpoints, System health page. See `INFRASTRUCTURE.md`.
+- **Phase 9, security and privacy:** code review fixes, shared rate limits, data export, account deletion, retention, legal review pack. See `SECURITY.md` and `LEGAL_REVIEW.md`.
+
+**Needs before use:** Redis, a running worker, gateway sandbox accounts, R2 buckets, then real testing of everything from Phase 5 onward, an independent security test and legal review.
 
 ### Phase 6: Mock test refinement (1 week)
 

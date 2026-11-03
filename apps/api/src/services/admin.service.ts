@@ -11,7 +11,10 @@ const SETTING_RULES: Record<string, z.ZodType> = {
   "retention.speaking_recordings_days": days,
   "retention.expired_tokens_days": days,
   "retention.data_exports_days": days,
+  "retention.audit_ip_days": days,
   "privacy.deletion_cancel_window_days": days,
+  "billing.enforce_credits": z.boolean(),
+  "billing.refund_window_days": z.number().int().min(0).max(365),
   "regions.default": z.string().regex(/^[A-Z]{2}$/),
   "regions.bd": z.strictObject({ currency: z.string().regex(/^[A-Z]{3}$/), locale: z.string().min(2).max(10), gateways: z.array(z.string().min(1)).max(10) }),
 };

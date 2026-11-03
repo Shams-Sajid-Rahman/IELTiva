@@ -3,13 +3,20 @@ import { API_PREFIX } from "./config/constants.js";
 import { createPrismaClient } from "./config/database.js";
 import { loadConfig } from "./config/env.js";
 import { createAuthMiddleware } from "./middleware/authenticate.js";
+import { useRedisForRateLimits } from "./middleware/rate-limit.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
+import { createPaymentCallbackRouter } from "./routes/billing.routes.js";
+import { createProbeRouter } from "./routes/ops.routes.js";
 import { createPlatformRouter } from "./routes/platform.routes.js";
 import { createAuthService } from "./services/auth.service.js";
 import { createEmailProvider } from "./services/email/index.js";
 import { createGoogleProvider } from "./services/google-oauth.service.js";
 import { createNotificationService, createPlatformServices } from "./services/platform.js";
-import { LocalPrivateStorage, UnavailableStorage } from "./services/storage/private-storage.js";
+import { probeAudio } from "./services/audio/audio.service.js";
+import { createCache } from "./services/cache.js";
+import { createEventRecorder } from "./services/ops/events.js";
+import { createJobQueues, createRedisClient, createRedisStore } from "./services/queue/jobs.js";
+import { createStorage, withErrorTracking } from "./services/storage/index.js";
 import { createTokenService } from "./services/token.service.js";
 import { createShutdown } from "./utils/graceful-shutdown.js";
 import { createLogger } from "./utils/logger.js";
@@ -22,10 +29,15 @@ const email = createEmailProvider(env, logger);
 const google = createGoogleProvider(env);
 const notifications = createNotificationService(prisma);
 const auth = createAuthService({ prisma, env, tokens, email, logger, notifyUser: notifications.notifyUser });
-// Production stays unavailable until the private cloud storage provider exists.
-const storage = env.NODE_ENV !== "production" && env.STORAGE_LOCAL_DIR ? new LocalPrivateStorage(env.STORAGE_LOCAL_DIR) : new UnavailableStorage();
+const events = createEventRecorder(prisma, logger);
+const storage = withErrorTracking(createStorage(env), (code, name) => events.record("storage", code, name));
+const redis = createRedisClient(env.REDIS_URL, logger);
+const queues = createJobQueues(env.REDIS_URL, logger);
+const cache = createCache({ shared: redis ? createRedisStore(redis) : null });
+useRedisForRateLimits(redis);
 const { authenticateUser } = createAuthMiddleware({ tokens, auth });
-const platformRouter = createPlatformRouter(createPlatformServices({ prisma, env, email, logger, storage, auth, notifications }), authenticateUser);
+const services = createPlatformServices({ prisma, env, email, logger, storage, auth, notifications, aiEnv: env, billingEnv: env, cache, redis, queues, redisUrl: env.REDIS_URL, audioProbe: probeAudio });
+const platformRouter = createPlatformRouter(services, authenticateUser);
 
 const app = createApp({
   env,
@@ -35,6 +47,8 @@ const app = createApp({
   },
   authRouter: createAuthRouter({ env, auth, tokens, google }),
   platformRouter,
+  paymentCallbackRouter: createPaymentCallbackRouter(services.billing, logger, env.FRONTEND_URL),
+  probeRouter: createProbeRouter(services.operations),
 });
 
 const server = app.listen(env.PORT, () => {
@@ -46,7 +60,10 @@ const server = app.listen(env.PORT, () => {
 
 const shutdown = createShutdown({
   server,
-  disconnect: () => prisma.$disconnect(),
+  disconnect: async () => {
+    await Promise.allSettled([services.operations.close(), queues?.close(), redis?.quit()]);
+    await prisma.$disconnect();
+  },
   logger,
   exit: (code) => process.exit(code),
 });

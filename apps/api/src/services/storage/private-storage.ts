@@ -2,14 +2,31 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { AppError } from "../../utils/app-error.js";
 
-/** Files are private. Callers stream them after an access check, and no storage URL ever reaches a client. */
+export type PutOptions = { contentType?: string };
+export type SignedLinkOptions = { expiresSeconds: number; fileName?: string; contentType?: string };
+
+/**
+ * Files are private. Callers check access first and then stream the file or, where the provider supports it,
+ * hand out a link that works briefly for that one file. Storage credentials never reach a client.
+ */
 export interface PrivateStorage {
-  put(key: string, data: Buffer): Promise<void>;
+  readonly kind: string;
+  put(key: string, data: Buffer, options?: PutOptions): Promise<void>;
   get(key: string): Promise<Buffer | null>;
   delete(key: string): Promise<void>;
+  signedDownloadUrl?(key: string, options: SignedLinkOptions): Promise<string | null>;
+  /** Confirms the storage can be reached, for the operations page. */
+  check?(): Promise<void>;
+}
+
+/** Keys are built by our own code, and this refuses any that could reach outside its folder if that ever changes. */
+export function assertSafeKey(key: string) {
+  if (!key || key.startsWith("/") || key.includes("\\") || key.split("/").some((part) => part === ".." || part === ".")) throw new Error("Invalid storage key");
 }
 
 export class LocalPrivateStorage implements PrivateStorage {
+  readonly kind = "local";
+
   constructor(private readonly root: string) {}
 
   private resolve(key: string) {
@@ -37,8 +54,10 @@ export class LocalPrivateStorage implements PrivateStorage {
   }
 }
 
-/** Used until the Cloudflare R2 provider exists, so production can't silently write to a server's disk. */
+/** Used when no storage is configured, so production can't silently write to a server's disk. */
 export class UnavailableStorage implements PrivateStorage {
+  readonly kind = "unavailable";
+
   private fail(): never {
     throw new AppError(503, "SERVICE_UNAVAILABLE", "File storage isn't available yet.");
   }

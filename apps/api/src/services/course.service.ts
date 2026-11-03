@@ -1,3 +1,4 @@
+import type { Cache } from "./cache.js";
 import { randomBytes } from "node:crypto";
 import { Prisma, type DifficultyLevel, type ExamType, type PublicationAction, type PublicationStatus, type ResourceType, type Skill } from "../generated/prisma/client.js";
 import type { PrismaClient } from "../generated/prisma/client.js";
@@ -49,6 +50,8 @@ const resourceSummary = {
   type: true,
   title: true,
   durationMinutes: true,
+  fileName: true,
+  fileBytes: true,
 } satisfies Prisma.LearningResourceSelect;
 
 function slugify(title: string) {
@@ -98,7 +101,7 @@ function writeHistory(db: Db, actor: Actor, target: { courseId: string } | { mod
 
 export { writeHistory };
 
-export function createCourseService(prisma: PrismaClient, notifications: NotificationService) {
+export function createCourseService(prisma: PrismaClient, notifications: NotificationService, cache?: Cache) {
   async function loadForManage(actor: Actor, id: string) {
     const course = await prisma.course.findFirst({ where: { id, deletedAt: null } });
     if (!course) throw NOT_FOUND();
@@ -165,16 +168,19 @@ export function createCourseService(prisma: PrismaClient, notifications: Notific
       };
       const descending = query.sort.startsWith("-");
       const field = query.sort.replace("-", "") as "title" | "createdAt" | "publishedAt";
-      const [rows, total] = await prisma.$transaction([
-        prisma.course.findMany({
-          where,
-          select: courseSelect,
-          orderBy: { [field]: descending ? "desc" : "asc" },
-          skip: (query.page - 1) * query.pageSize,
-          take: query.pageSize,
-        }),
-        prisma.course.count({ where }),
-      ]);
+      const load = () =>
+        prisma.$transaction([
+          prisma.course.findMany({
+            where,
+            select: courseSelect,
+            orderBy: { [field]: descending ? "desc" : "asc" },
+            skip: (query.page - 1) * query.pageSize,
+            take: query.pageSize,
+          }),
+          prisma.course.count({ where }),
+        ]);
+      // Only the public catalog is shared. Staff views, and each student's enrollments below, are always read fresh.
+      const [rows, total] = cache && query.scope === "catalog" ? await cache.getOrSet("public", `courses:${JSON.stringify(query)}`, 60, load) : await load();
       const enrollments = await prisma.userEnrollment.findMany({
         where: { userId: actor.userId, courseId: { in: rows.map((row) => row.id) } },
         select: { id: true, courseId: true, status: true },

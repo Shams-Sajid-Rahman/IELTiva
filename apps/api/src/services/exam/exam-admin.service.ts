@@ -4,6 +4,7 @@ import type { Actor } from "../../types/platform.js";
 import { pageMeta } from "../../utils/api-response.js";
 import { AppError } from "../../utils/app-error.js";
 import { recordAudit } from "../audit.service.js";
+import { AudioError, type AudioInfo } from "../audio/audio.service.js";
 import { detectImageType, type PrivateStorage } from "../storage/private-storage.js";
 import { audioContentType, detectAudioType } from "./marking.js";
 
@@ -96,7 +97,7 @@ export function validateVersion(version: Tree) {
   return { errors, warnings };
 }
 
-export function createExamAdminService(prisma: PrismaClient, storage: PrivateStorage) {
+export function createExamAdminService(prisma: PrismaClient, storage: PrivateStorage, probe?: (data: Buffer) => Promise<AudioInfo>) {
   const loadTree = async (versionId: string): Promise<Tree> => {
     const version = await prisma.examVersion.findUnique({ where: { id: versionId }, include: { ...versionTree, exam: { select: { examType: true, isMock: true } } } });
     if (!version) throw new AppError(404, "NOT_FOUND", "This exam version wasn't found.");
@@ -325,12 +326,22 @@ export function createExamAdminService(prisma: PrismaClient, storage: PrivateSto
       await prisma.readingPassage.delete({ where: { id } });
     },
 
-    async uploadAudio(sectionId: string, data: Buffer, durationSeconds: number) {
+    async uploadAudio(sectionId: string, data: Buffer, givenDuration: number) {
       await sectionVersion(sectionId);
       if (data.length === 0) throw new AppError(400, "VALIDATION_ERROR", "This file is empty.");
       if (data.length > MAX_AUDIO_BYTES) throw new AppError(413, "PAYLOAD_TOO_LARGE", "This file is too large.");
       const type = detectAudioType(data);
       if (!type) throw new AppError(400, "VALIDATION_ERROR", "This file isn't a supported audio format.");
+      // Beyond its first bytes, the file has to really contain audio. The measured length replaces the typed one when it can be read.
+      let durationSeconds = givenDuration;
+      if (probe) {
+        try {
+          const info = await probe(data);
+          if (info.durationSeconds > 0) durationSeconds = info.durationSeconds;
+        } catch (error) {
+          if (error instanceof AudioError && error.kind === "INVALID") throw new AppError(400, "VALIDATION_ERROR", "This file doesn't contain readable audio.");
+        }
+      }
       const siblings = await prisma.listeningAudio.findMany({ where: { sectionId }, select: { position: true } });
       const position = nextPosition(siblings);
       const storageKey = `content/${sectionId}/audio-${position}-${Date.now()}.${type.extension}`;

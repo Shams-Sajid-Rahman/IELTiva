@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, CircleDot, Clock, ExternalLink, GraduationCap, Headphones, Lock, Mic, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, CircleDot, Clock, Download, ExternalLink, GraduationCap, Headphones, Lock, Mic, PenLine } from "lucide-react";
 import { motion, useReducedMotion, useScroll } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/lib/api-client";
+import { api, ApiRequestError } from "@/lib/api-client";
+import { downloadFromApi } from "@/lib/download";
 import { cn } from "@/lib/utils";
 import { formatDate, formatMinutes } from "../format";
 import { useApiAction, useApiPage, useApiQuery, useDebounced } from "../hooks";
@@ -61,7 +62,7 @@ function Thumbnail({ url, skill }: { url: string | null; skill?: string | null }
   }
   // External images set by content managers. Next's image optimiser would need each host allowed in advance.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt="" referrerPolicy="no-referrer" className="h-32 w-full rounded-t-xl object-cover" />;
+  return <img src={url} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-32 w-full rounded-t-xl object-cover" />;
 }
 
 function CourseGridSkeleton() {
@@ -275,6 +276,7 @@ type ResourceView = {
   durationMinutes: number | null;
   body: string | null;
   externalUrl: string | null;
+  fileName?: string | null;
   enrolled: boolean;
   section: { id: string; title: string };
   course: { id: string; title: string };
@@ -370,6 +372,15 @@ export function ResourceViewPage() {
                 <a href={resource.externalUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink aria-hidden /> {t("open_resource")}<span className="sr-only"> {t("opens_in_a_new_tab")}</span>
                 </a>
+              </Button>
+            )}
+            {resource.fileName && (
+              <Button
+                variant="outline"
+                className="mt-6 ml-0 sm:ml-2"
+                onClick={() => void downloadFromApi(`/resources/${resourceId}/file`, resource.fileName ?? "resource").catch((error: unknown) => toast.error(error instanceof ApiRequestError ? error.message : t("something_went_wrong_please_try_again")))}
+              >
+                <Download aria-hidden /> {t("download_file", { name: resource.fileName })}
               </Button>
             )}
             <div className="mt-8 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">

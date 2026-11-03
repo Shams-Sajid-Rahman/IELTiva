@@ -29,6 +29,35 @@ const envSchema = z
     RESEND_API_KEY: optionalText,
     EMAIL_FROM: optionalText,
     STORAGE_LOCAL_DIR: optionalText,
+    // AI features stay switched off until their keys are set.
+    AI_PROVIDER: z.string().default("anthropic"),
+    ANTHROPIC_API_KEY: optionalText,
+    AI_MODEL_DEFAULT: z.string().default("claude-sonnet-5-5"),
+    AI_MODEL_COMPLEX: z.string().default("claude-opus-5-5"),
+    AI_MODEL_LIGHT: z.string().default("claude-haiku-5-5"),
+    AI_TIMEOUT_SECONDS: z.coerce.number().int().min(10).max(1800).default(300),
+    AI_ALLOWED_MODELS: optionalText,
+    AI_USER_DAILY_TOKEN_LIMIT: z.coerce.number().int().min(0).default(500_000),
+    AI_DAILY_SPEND_ALERT_USD: z.preprocess((value) => (value === "" ? undefined : value), z.coerce.number().min(0).optional()),
+    AI_DAILY_SPEND_LIMIT_USD: z.preprocess((value) => (value === "" ? undefined : value), z.coerce.number().min(0).optional()),
+    REDIS_URL: optionalText,
+    AZURE_SPEECH_KEY: optionalText,
+    AZURE_SPEECH_REGION: optionalText,
+    AZURE_SPEECH_LANGUAGE: z.string().default("en-GB"),
+    // Payments run against gateway sandboxes unless live mode is explicitly allowed. Keys are never stored in the database.
+    PAYMENT_ALLOW_LIVE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+    SSLCOMMERZ_STORE_ID: optionalText,
+    SSLCOMMERZ_STORE_PASSWORD: optionalText,
+    AAMARPAY_STORE_ID: optionalText,
+    AAMARPAY_SIGNATURE_KEY: optionalText,
+    STRIPE_SECRET_KEY: optionalText,
+    STRIPE_WEBHOOK_SECRET: optionalText,
+    // Private file storage. Without these, development uses STORAGE_LOCAL_DIR and production has no file storage.
+    R2_ACCOUNT_ID: optionalText,
+    R2_ACCESS_KEY_ID: optionalText,
+    R2_SECRET_ACCESS_KEY: optionalText,
+    R2_BUCKET_USER: z.string().default("ieltiva-user"),
+    R2_BUCKET_CONTENT: z.string().default("ieltiva-content"),
   })
   .superRefine((env, ctx) => {
     if (env.JWT_ACCESS_SECRET === env.CSRF_SECRET) {
@@ -39,6 +68,10 @@ const envSchema = z
     }
     if (env.RESEND_API_KEY && !env.EMAIL_FROM) {
       ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "is required when RESEND_API_KEY is set" });
+    }
+    const r2 = [env.R2_ACCOUNT_ID, env.R2_ACCESS_KEY_ID, env.R2_SECRET_ACCESS_KEY].filter(Boolean).length;
+    if (r2 !== 0 && r2 !== 3) {
+      ctx.addIssue({ code: "custom", path: ["R2_ACCOUNT_ID"], message: "set all three R2 values or none" });
     }
     if (env.NODE_ENV !== "production") return;
     for (const key of ["FRONTEND_URL", "API_BASE_URL"] as const) {

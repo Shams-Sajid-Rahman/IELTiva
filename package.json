@@ -32,7 +32,8 @@
     "db:seed": "npm run db:seed -w @ieltiva/api",
     "build:e2e": "npm run build -w @ieltiva/shared && npm run build:e2e -w @ieltiva/web",
     "admin:create": "npm run admin:create -w @ieltiva/api",
-    "exams:sample": "npm run exams:sample -w @ieltiva/api"
+    "exams:sample": "npm run exams:sample -w @ieltiva/api",
+    "worker": "npm run worker -w @ieltiva/api"
   },
   "allowScripts": {
     "prisma@7.10.1": true,

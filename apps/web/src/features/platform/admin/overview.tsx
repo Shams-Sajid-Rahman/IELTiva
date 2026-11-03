@@ -93,6 +93,8 @@ export function AdminOverview() {
   const router = useRouter();
   const { hasPermission } = useAuth();
   const allowed = hasPermission("dashboard.admin");
+  const canMark = hasPermission("calibration.mark");
+  const canCourses = hasPermission("courses.manage") || hasPermission("courses.manage_all");
   const [from, setFrom] = useState(() => isoDaysAgo(29));
   const [to, setTo] = useState(() => isoDaysAgo(0));
   const dashboard = useApiQuery<AdminDashboard>("/dashboard/admin", { enabled: allowed });
@@ -100,8 +102,8 @@ export function AdminOverview() {
 
   // Instructors and editors work in the course area.
   useEffect(() => {
-    if (!allowed) router.replace("/admin/courses");
-  }, [allowed, router]);
+    if (!allowed) router.replace(canMark && !canCourses ? "/admin/calibration" : "/admin/courses");
+  }, [allowed, canCourses, canMark, router]);
   if (!allowed) return <LoadingBlocks />;
 
   const preset = (days: number) => {

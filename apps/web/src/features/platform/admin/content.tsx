@@ -21,7 +21,7 @@ import { ConfirmButton, Empty, FormDialog, InputField, PageHeader, Pagination, Q
 
 type ModuleRow = { id: string; name: string; description: string | null; skill: string | null; examType: string | null; difficulty: string | null; estimatedMinutes: number | null; status: string; position: number; courseCount: number };
 type CourseRow = { id: string; title: string; slug: string; status: string; examType: string | null; difficulty: string | null; enrollmentCount: number; updatedAt: string; module: { id: string; name: string }; instructor: { id: string; name: string } | null };
-type Resource = { id: string; position: number; type: string; title: string; durationMinutes: number | null; body?: string | null; externalUrl?: string | null };
+type Resource = { id: string; position: number; type: string; title: string; durationMinutes: number | null; fileName?: string | null; body?: string | null; externalUrl?: string | null };
 type Section = { id: string; position: number; title: string; description: string | null; isVisible: boolean; resources: Resource[] };
 type CourseEditorData = CourseRow & { description: string | null; thumbnailUrl: string | null; learningObjectives: string[]; estimatedMinutes: number | null; isPremium: boolean; canManage: boolean; sections: Section[] };
 type HistoryEntry = { id: string; action: string; fromStatus: string | null; toStatus: string; note: string | null; createdAt: string; actorName: string | null };
@@ -312,6 +312,38 @@ function ResourceForm({ sectionId, resource, onDone }: { sectionId: string; reso
   );
 }
 
+/** Attaches a PDF or image. The server checks the file's real contents and size, and students open it through their normal access check. */
+function ResourceFile({ resource }: { resource: Resource }) {
+  const t = useTranslations("app");
+  const upload = useApiAction((file: File) => api.put(`/resources/${resource.id}/file?name=${encodeURIComponent(file.name)}`, file), t("file_uploaded"));
+  const remove = useApiAction(() => api.delete(`/resources/${resource.id}/file`), t("file_removed"));
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+      {resource.fileName ? (
+        <>
+          <span className="text-muted-foreground break-all">{resource.fileName}</span>
+          <Button type="button" variant="ghost" size="sm" disabled={remove.isPending} onClick={() => remove.mutate()}>{t("remove_file")}</Button>
+        </>
+      ) : (
+        <label className="text-primary cursor-pointer underline-offset-2 hover:underline">
+          {upload.isPending ? t("uploading") : t("attach_file")}
+          <input
+            type="file"
+            className="sr-only"
+            accept="application/pdf,image/png,image/jpeg"
+            disabled={upload.isPending}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) upload.mutate(file);
+              event.target.value = "";
+            }}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 function ResourceRow({ resource, sectionId, last }: { resource: Resource; sectionId: string; last: boolean }) {
   const t = useTranslations("app");
   const { labels } = useContentOptions();
@@ -323,6 +355,7 @@ function ResourceRow({ resource, sectionId, last }: { resource: Resource; sectio
       <div className="min-w-0 flex-1 basis-40">
         <p className="font-medium break-words">{resource.title}</p>
         <p className="text-muted-foreground text-xs">{labels.resourceType(resource.type)}</p>
+        <ResourceFile resource={resource} />
       </div>
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" aria-label={t("move_title_up", { title: resource.title })} disabled={resource.position <= 1} onClick={() => move.mutate(resource.position - 1)}><ArrowUp aria-hidden /></Button>

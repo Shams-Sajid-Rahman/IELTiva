@@ -3,6 +3,8 @@ import { Prisma, type AttemptMode, type AttemptStatus, type PrismaClient } from 
 import type { Actor } from "../../types/platform.js";
 import { pageMeta } from "../../utils/api-response.js";
 import { AppError } from "../../utils/app-error.js";
+import type { EntitlementService } from "../billing/entitlement.service.js";
+import type { Cache } from "../cache.js";
 import { hasPremiumAccess } from "../course-access.js";
 import { contentTypeForKey } from "../storage/private-storage.js";
 import type { PrivateStorage } from "../storage/private-storage.js";
@@ -14,8 +16,8 @@ const UPLOAD_GRACE_MS = 30_000;
 const DEFAULT_RESUME_HOURS = 72;
 const MAX_RECORDING_BYTES = 25 * 1024 * 1024;
 const DAY_MS = 86_400_000;
-/** Recordings are kept this long, and later phases handle deletion. */
-const RECORDING_RETENTION_DAYS = 365;
+/** Used if the platform setting is missing. Administrators change retention.speaking_recordings_days. */
+const DEFAULT_RETENTION_DAYS = 90;
 
 const FINAL: AttemptStatus[] = ["SUBMITTED", "EXPIRED", "ABANDONED"];
 const isFinal = (status: AttemptStatus) => FINAL.includes(status);
@@ -96,15 +98,17 @@ async function finalizeSection(tx: Tx, sectionAttemptId: string, status: "SUBMIT
     for (const draft of drafts) {
       if (!draft.text.trim()) continue;
       await tx.writingSubmission.update({ where: { id: draft.id }, data: { submittedAt: now, wordCount: countWords(draft.text) } });
-      // Prepared for Phase 5. It stays hidden and has no band or criterion scores.
+      // A hidden placeholder. Real AI results are separate rows, created only if the student asks for feedback.
       await tx.assessmentResult.create({ data: { writingSubmissionId: draft.id, bandVisibility: "HIDDEN" } });
     }
   }
 
   if (skill === "SPEAKING") {
+    const setting = await tx.platformSetting.findUnique({ where: { key: "retention.speaking_recordings_days" } });
+    const days = Number(setting?.value ?? DEFAULT_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS;
     await tx.speakingSubmission.updateMany({
       where: { sectionAttemptId, submittedAt: null, audioStorageKey: { not: null } },
-      data: { submittedAt: now, audioDeleteAfter: new Date(now.getTime() + RECORDING_RETENTION_DAYS * DAY_MS) },
+      data: { submittedAt: now, audioDeleteAfter: new Date(now.getTime() + days * DAY_MS) },
     });
   }
 
@@ -133,7 +137,17 @@ async function closeAttemptIfDone(tx: Tx, attemptId: string, now: Date) {
   });
 }
 
-export function createAttemptService(prisma: PrismaClient, storage: PrivateStorage) {
+/** Which kinds of package can open a premium exam. A mock test needs a mock package, so a Listening package can't unlock it. */
+const premiumKeysFor = (isMock: boolean, skills: string[]) => [
+  "practice_pass",
+  ...(isMock ? ["mock_tests"] : []),
+  ...(!isMock && skills.includes("LISTENING") ? ["listening_tests"] : []),
+  ...(!isMock && skills.includes("READING") ? ["reading_tests"] : []),
+];
+
+type AttemptOptions = { credits?: EntitlementService | undefined; cache?: Cache | undefined; onRecordingSaved?: ((submissionId: string) => Promise<void>) | undefined };
+
+export function createAttemptService(prisma: PrismaClient, storage: PrivateStorage, { credits, cache, onRecordingSaved }: AttemptOptions = {}) {
   /** Time limits live on the server. Anything past its limit is finished here, whenever the attempt is next touched. */
   async function settle(attemptId: string) {
     const now = new Date();
@@ -215,12 +229,12 @@ export function createAttemptService(prisma: PrismaClient, storage: PrivateStora
     async start(actor: Actor, examId: string, requested?: AttemptMode) {
       const exam = await prisma.exam.findFirst({
         where: { id: examId, deletedAt: null },
-        include: { versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1, include: { sections: { orderBy: { position: "asc" }, select: { id: true } } } } },
+        include: { versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1, include: { sections: { orderBy: { position: "asc" }, select: { id: true, skill: true } } } } },
       });
       const version = exam?.versions[0];
       if (!exam || !version) throw new AppError(404, "NOT_FOUND", "This exam isn't available.");
       if (exam.isPremium && !(await hasPremiumAccess(prisma, actor.userId))) {
-        throw new AppError(403, "ENTITLEMENT_REQUIRED", "This exam needs a practice pass, which isn't available to buy yet.");
+        throw new AppError(403, "ENTITLEMENT_REQUIRED", "This exam needs a practice package. You can buy one on the Packages page.");
       }
       const mode: AttemptMode = exam.isMock ? "MOCK" : (requested ?? "TIMED");
       if (mode === "MOCK" && !exam.isMock) throw new AppError(400, "VALIDATION_ERROR", "This exam isn't a mock test.");
@@ -240,14 +254,21 @@ export function createAttemptService(prisma: PrismaClient, storage: PrivateStora
 
       const hours = settings.resumeWindowHours ?? DEFAULT_RESUME_HOURS;
       try {
-        const created = await prisma.examAttempt.create({
-          data: {
-            userId: actor.userId,
-            examVersionId: version.id,
-            mode,
-            expiresAt: new Date(Date.now() + hours * 3_600_000),
-            sections: { create: version.sections.map((section) => ({ sectionId: section.id, status: "NOT_STARTED" as const })) },
-          },
+        // For a premium exam, starting the attempt and using up one credit happen together or not at all.
+        const created = await prisma.$transaction(async (tx) => {
+          const attempt = await tx.examAttempt.create({
+            data: {
+              userId: actor.userId,
+              examVersionId: version.id,
+              mode,
+              expiresAt: new Date(Date.now() + hours * 3_600_000),
+              sections: { create: version.sections.map((section) => ({ sectionId: section.id, status: "NOT_STARTED" as const })) },
+            },
+          });
+          if (exam.isPremium && credits) {
+            await credits.consume(tx, actor.userId, premiumKeysFor(exam.isMock, version.sections.map((section) => section.skill)), { type: "exam_attempt", id: attempt.id }, "exam_attempt");
+          }
+          return attempt;
         });
         return attemptView(await own(actor, created.id));
       } catch (error) {
@@ -601,16 +622,18 @@ export function createAttemptService(prisma: PrismaClient, storage: PrivateStora
       const key = `recordings/${actor.userId}/${attemptId}/${questionId}-${Date.now()}.${type.extension}`;
       await storage.put(key, data);
       let previous: string | null = null;
+      let savedId = "";
       try {
         await prisma.$transaction(async (tx) => {
           await assertOpen(tx, sectionAttempt.id, UPLOAD_GRACE_MS);
           const where = { sectionAttemptId_speakingQuestionId: { sectionAttemptId: sectionAttempt.id, speakingQuestionId: questionId } };
           previous = (await tx.speakingSubmission.findUnique({ where }))?.audioStorageKey ?? null;
-          await tx.speakingSubmission.upsert({
+          const saved = await tx.speakingSubmission.upsert({
             where,
             create: { sectionAttemptId: sectionAttempt.id, speakingQuestionId: questionId, audioStorageKey: key, durationSeconds },
-            update: { audioStorageKey: key, durationSeconds },
+            update: { audioStorageKey: key, durationSeconds, status: "PENDING" },
           });
+          savedId = saved.id;
           await tx.sectionAttempt.update({ where: { id: sectionAttempt.id }, data: { lastSavedAt: new Date() } });
         });
       } catch (error) {
@@ -619,6 +642,8 @@ export function createAttemptService(prisma: PrismaClient, storage: PrivateStora
         throw error;
       }
       if (previous) await storage.delete(previous);
+      // A deeper check runs in the background. A problem queuing it mustn't lose the student's recording.
+      if (onRecordingSaved) await onRecordingSaved(savedId).catch(() => undefined);
       return { durationSeconds, hasRecording: true };
     },
 
@@ -681,32 +706,37 @@ export function createAttemptService(prisma: PrismaClient, storage: PrivateStora
         ...(query.examType ? { OR: [{ examType: query.examType }, { examType: null }] } : {}),
         ...(query.isMock ? { isMock: query.isMock === "true" } : {}),
       };
-      const [rows, total] = await prisma.$transaction([
-        prisma.exam.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          skip: (query.page - 1) * query.pageSize,
-          take: query.pageSize,
-          select: {
-            id: true,
-            title: true,
-            examType: true,
-            isMock: true,
-            isPremium: true,
-            versions: {
-              where: { status: "PUBLISHED" },
-              orderBy: { versionNumber: "desc" },
-              take: 1,
-              select: {
-                id: true,
-                sections: { orderBy: { position: "asc" }, select: { skill: true, durationSeconds: true, questionGroups: { select: { _count: { select: { questions: true } } } } } },
-                attempts: { where: { userId: actor.userId, status: "IN_PROGRESS" }, select: { id: true }, take: 1 },
+      // The list of published exams is the same for everyone, so it can be shared. Each student's open attempts are read separately and never cached.
+      const load = () =>
+        prisma.$transaction([
+          prisma.exam.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            skip: (query.page - 1) * query.pageSize,
+            take: query.pageSize,
+            select: {
+              id: true,
+              title: true,
+              examType: true,
+              isMock: true,
+              isPremium: true,
+              versions: {
+                where: { status: "PUBLISHED" },
+                orderBy: { versionNumber: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  sections: { orderBy: { position: "asc" }, select: { skill: true, durationSeconds: true, questionGroups: { select: { _count: { select: { questions: true } } } } } },
+                },
               },
             },
-          },
-        }),
-        prisma.exam.count({ where }),
-      ]);
+          }),
+          prisma.exam.count({ where }),
+        ]);
+      const [rows, total] = cache ? await cache.getOrSet("public", `exams:${JSON.stringify(query)}`, 60, load) : await load();
+      const versionIds = rows.flatMap((row) => row.versions.map((version) => version.id));
+      const openAttempts = await prisma.examAttempt.findMany({ where: { userId: actor.userId, status: "IN_PROGRESS", examVersionId: { in: versionIds } }, select: { id: true, examVersionId: true } });
+      const openByVersion = new Map(openAttempts.map((row) => [row.examVersionId, row.id]));
       return {
         items: rows.map(({ versions, ...exam }) => {
           const version = versions[0];
@@ -716,7 +746,7 @@ export function createAttemptService(prisma: PrismaClient, storage: PrivateStora
             skills: [...new Set(sections.map((section) => section.skill))],
             durationSeconds: sections.reduce((sum, section) => sum + section.durationSeconds, 0),
             questionCount: sections.reduce((sum, section) => sum + section.questionGroups.reduce((count, group) => count + group._count.questions, 0), 0),
-            activeAttemptId: version?.attempts[0]?.id ?? null,
+            activeAttemptId: version ? (openByVersion.get(version.id) ?? null) : null,
           };
         }),
         meta: pageMeta(query.page, query.pageSize, total),

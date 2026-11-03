@@ -138,6 +138,30 @@ export function createApiClient({ baseUrl, fetcher }: Options) {
       if (!response.ok) await parse(response);
       return response.blob();
     },
+    /** Posts, then reads server-sent events, handing each piece of text to `onText` as it arrives. */
+    async stream(path: string, body: unknown, onText: (text: string) => void) {
+      const response = await execute("POST", path, body);
+      if (!response.ok) await parse(response);
+      const reader = response.body?.getReader();
+      if (!reader) throw new ApiRequestError(0, "NETWORK_ERROR", CONNECTION_MESSAGE);
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+        for (const raw of events) {
+          const event = /^event: (.+)$/m.exec(raw)?.[1];
+          const data = /^data: (.+)$/m.exec(raw)?.[1];
+          if (!data) continue;
+          const parsed = JSON.parse(data) as { text?: string; message?: string };
+          if (event === "text" && parsed.text) onText(parsed.text);
+          if (event === "error") throw new ApiRequestError(503, "SERVICE_UNAVAILABLE", parsed.message ?? "Something went wrong. Please try again.");
+        }
+      }
+    },
     url: (path: string) => `${baseUrl}${path}`,
   };
 }

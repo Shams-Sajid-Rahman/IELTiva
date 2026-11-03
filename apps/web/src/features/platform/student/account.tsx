@@ -19,6 +19,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PersonalPlan } from "@/features/analytics/plan";
+import { DataControls } from "@/features/privacy/data-controls";
+import { PrivacyTab } from "@/features/ai/consent";
 import { useAuth } from "@/features/auth/auth-provider";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -418,6 +421,7 @@ function SecurityTab({ profile }: { profile: Profile }) {
 
 export function SettingsPage() {
   const t = useTranslations("app");
+  const privacy = useTranslations("ai.privacy");
   const query = useApiQuery<Profile>("/profile/me");
   return (
     <>
@@ -429,12 +433,14 @@ export function SettingsPage() {
               <TabsTrigger value="preferences">{t("preferences")}</TabsTrigger>
               <TabsTrigger value="notifications">{t("notifications")}</TabsTrigger>
               <TabsTrigger value="security">{t("security")}</TabsTrigger>
+              <TabsTrigger value="privacy">{privacy("tab")}</TabsTrigger>
             </TabsList>
             <Card className="shadow-soft mt-4">
               <CardContent>
                 <TabsContent value="preferences"><PreferencesTab profile={profile} /></TabsContent>
                 <TabsContent value="notifications"><NotificationsTab profile={profile} /></TabsContent>
                 <TabsContent value="security"><SecurityTab profile={profile} /></TabsContent>
+                <TabsContent value="privacy"><PrivacyTab /><DataControls /></TabsContent>
               </CardContent>
             </Card>
           </Tabs>
@@ -464,7 +470,7 @@ export function PlannerPage() {
     <>
       <PageHeader
         title={t("study_planner")}
-        description={t("plan_your_own_study_tasks_personalized_ai_plans_come_in")}
+        description={t("planner_intro")}
         actions={
           <FormDialog open={open} onOpenChange={setOpen} title={t("add_a_study_task")} trigger={<Button><CalendarCheck aria-hidden /> {t("add_task")}</Button>}>
             <form
@@ -492,6 +498,7 @@ export function PlannerPage() {
           </FormDialog>
         }
       />
+      <PersonalPlan />
       <QueryBoundary query={query}>
         {(tasks) =>
           tasks.length === 0 ? (

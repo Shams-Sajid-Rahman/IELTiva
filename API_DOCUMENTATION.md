@@ -278,6 +278,90 @@ These are in-app only. No email or push delivery exists for them.
 | GET | `/public/free-test` | Public | Sample test |
 | POST | `/public/free-test/score` | Public | Mark sample answers |
 
+## Payments and packages (built)
+
+These replace the proposed "Billing" section below. See `PAYMENTS.md`. All need a signed-in user unless marked public.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/packages`, `/packages/:id` | | Packages on sale |
+| GET | `/billing/gateways?currency=` | | Usable payment methods |
+| POST | `/billing/checkout` | | Starts a payment. Body: `packageId`, `currency`, `gateway`, `idempotencyKey` |
+| GET | `/billing/payments/:reference/status` | Own | Result, confirmed with the gateway |
+| GET | `/billing/purchases`, `/billing/refunds` | Own | History |
+| GET | `/billing/credits`, `/billing/credits/history` | Own | Remaining credits, expiry, changes |
+| POST | `/billing/refunds` | Own | Requests a refund |
+| GET, POST, PATCH, DELETE | `/admin/packages` | `payments.read`, `payments.manage` | Packages and pricing |
+| GET | `/admin/transactions` | `payments.read` | Filter by status, gateway or search |
+| POST | `/admin/transactions/:id/recheck` | `payments.manage` | Asks the gateway again |
+| GET | `/admin/refunds` | `payments.read` | Refund queue |
+| POST | `/admin/refunds/:id/decision`, `/send`, `/complete` | `refunds.manage` | Decide, send to gateway, record a manual refund |
+| GET | `/admin/revenue` | `payments.read` | Per currency |
+| GET, PATCH | `/admin/gateways` | `gateways.manage` | Switch on and off |
+| POST | `/payments/webhooks/:gateway` | Public | Gateway notification, which only prompts a check |
+| GET, POST | `/payments/return/:gateway/:outcome` | Public | Browser return, then a redirect to the status page |
+
+## Analytics and study planning (built)
+
+Every `/analytics` route works on the signed-in student's own data.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/analytics/me?days=` | Overview, skills, trends, question types, activity, target. Raw, estimated and reviewed scores are kept separate |
+| GET | `/analytics/me/history` | Paginated test history |
+| GET, PUT | `/analytics/goals` | Goals, reminders and progress against them |
+| GET | `/analytics/recommendations` | Rule-based, with their evidence |
+| POST | `/analytics/recommendations/explain` | AI explanation of those rules. Needs AI consent |
+| GET | `/analytics/study-plan?days=` | Suggested schedule |
+| POST | `/analytics/study-plan/apply` | Adds it to the planner, safe to repeat |
+| GET | `/admin/analytics?days=` | Platform totals only (`dashboard.admin`). Revenue needs `payments.read` too. Averages from fewer than 5 students are withheld |
+
+## Files, privacy and operations (built)
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET, POST | `/reports` | Own | Lists files, or requests a progress report |
+| GET | `/reports/:id/download` | Own | A short-lived link as JSON, or the file |
+| GET | `/resources/:id/file` | Same as the resource | A short-lived link as JSON, or the file |
+| PUT, DELETE | `/resources/:id/file?name=` | Manages the course | PDF, PNG or JPEG up to 25 MB, checked from real bytes |
+| GET | `/privacy` | Own | Deletion state and retention periods |
+| POST | `/privacy/export` | Own | Requests a data export |
+| POST, DELETE | `/privacy/deletion` | Own | Schedules or cancels deletion. Students only |
+| GET | `/admin/operations` | `operations.read` | Health, queues, workers, errors |
+| GET | `/health/live`, `/health/ready` | Public | For load balancers |
+
+## AI, tutor, consent and calibration (built)
+
+All routes need a signed-in user. AI routes return 503 until their keys and Redis are set up, and 403 until the student has consented.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET, PUT | `/consents` | User | Read or set `AI_PROCESSING`, `SPEECH_PROCESSING` or `CALIBRATION_USE`. Withdrawing speech consent deletes the student's recordings |
+| POST | `/writing/submissions/:id/assessment` | `attempts.own` | Queue feedback, returning 202 and the job. Repeating it returns the same job |
+| GET | `/writing/submissions/:id/assessment` | `attempts.own` | Job status and report. Bands are removed unless released |
+| POST | `/speaking/submissions/:id/assessment` | `attempts.own` | Queue transcription and feedback |
+| GET | `/speaking/submissions/:id/assessment` | `attempts.own` | Job, transcript, delivery measures and report. Never includes a band |
+| DELETE | `/speaking/submissions/:id/audio` | `attempts.own` | Delete the audio. Written feedback stays |
+| GET | `/ai/jobs/:id` | `attempts.own` | Job status |
+| GET, POST | `/tutor/conversations` | `attempts.own` | List or start conversations |
+| GET, DELETE | `/tutor/conversations/:id` | `attempts.own` | Read or delete one |
+| POST | `/tutor/conversations/:id/messages` | `attempts.own` | Send a message, and stream the reply as server-sent events: `text`, `done`, `error` |
+| POST | `/tutor/explain` | `attempts.own` | Short grammar, vocabulary or sentence explanation |
+| GET, POST | `/admin/calibration/datasets` | `calibration.manage` (marks can list) | One dataset for each IELTS type and task |
+| GET | `/admin/calibration/datasets/:id` | `calibration.manage` | Counts and runs |
+| POST | `/admin/calibration/datasets/:id/samples` | `calibration.manage` | Add a de-identified sample |
+| POST | `/admin/calibration/datasets/:id/approve-thresholds` | `assessments.review` | Instructor approval of the internal targets |
+| GET | `/admin/calibration/datasets/:id/marking` | `calibration.mark` | Samples this marker hasn't marked, with no other marks shown |
+| POST | `/admin/calibration/samples/:id/marks` | `calibration.mark` | One independent mark |
+| GET | `/admin/calibration/datasets/:id/adjudication` | `calibration.manage` | Samples whose marks differ too much |
+| POST | `/admin/calibration/samples/:id/adjudication` | `calibration.manage` | Final mark, from someone who didn't mark the sample |
+| POST | `/admin/calibration/datasets/:id/freeze` | `calibration.manage` | Lock the dataset |
+| POST | `/admin/calibration/datasets/:id/runs` | `calibration.manage` | Compare AI with human marks on a split |
+| POST | `/admin/calibration/runs/:id/approve` | `assessments.review` | Instructor approval of a run |
+| POST | `/admin/calibration/runs/:id/release` | `ai.band_release` | Set `HIDDEN`, `INTERNAL` or `PUBLIC` |
+| GET | `/admin/ai/usage` | `ai.usage.read` | Tokens and cost. Filters: `from`, `to` |
+| GET, PUT | `/admin/ai/models` | `ai.usage.read`, `ai.configure` | See or change the model for a task |
+
 ## Practice engine (built)
 
 Every route needs a signed-in user. Student routes need `attempts.own`. Someone else's attempt returns 404. Files are streamed through the API after an access check, so no storage address is ever returned.

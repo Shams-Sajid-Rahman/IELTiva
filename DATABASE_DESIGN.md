@@ -310,3 +310,44 @@ All additive, with no data changed:
 `protect_published_exam_version` now allows `created_by_id` and `reviewed_by_id` to become empty, so deleting an author's account works. Everything else about a published version stays locked.
 
 Database connections now set their session timezone to UTC. Prisma sends times in UTC, so a server in another timezone stored them shifted. On a development database that ran in Asia/Dhaka before this fix, older timestamps read 6 hours early.
+
+## Phase 5 changes
+
+All additive, with no data changed:
+
+| Change | Why |
+| --- | --- |
+| `user_consents` | One row per student and consent type, with its version and any withdrawal |
+| `tutor_conversations`, `tutor_messages` | Tutor history. Assistant turns keep the raw response, because they must be replayed unchanged |
+| `calibration_datasets` | One per IELTS type and task, with targets and instructor approval. Writing datasets must state both, so they're never pooled |
+| `calibration_samples` | De-identified samples and their final human mark. A trigger blocks changes once a dataset is frozen |
+| `calibration_runs` | An AI comparison on one split, with its metrics and approval |
+| `band_releases` | The band gate, for one exact model, prompt, IELTS type and task. No row means closed |
+| `assessment_calibration_records.sample_id`, `run_id` | Links marks and predictions. Partial unique indexes allow one mark per marker, one adjudication per sample and one prediction per run |
+| `speaking_submissions.audio_deleted_at` | Records when a recording's file was removed |
+
+## Phases 6 to 9 changes
+
+All additive, and applied without changing existing rows. Existing `practice_packages` and `assessment_packages` stay in place but unused, because `packages` replaces them.
+
+| Change | Why |
+| --- | --- |
+| `packages`, `package_prices`, `package_features` | One sellable bundle, with per-currency prices and feature quantities |
+| `user_purchases.package_id`, `refunded_minor` | Links a purchase to its package and tracks money returned |
+| `payment_transactions.failure_reason`, `verified_at`, `expires_at` | Why a payment failed, when a gateway confirmed it, when it closes |
+| `refund_records.requested_by_id`, `decision_note`, `decided_at`. `RefundStatus` gained `REQUESTED`, `APPROVED`, `REJECTED` | The refund workflow |
+| `user_entitlements.package_id` | Links credits to their package |
+| `credit_ledger` | Every credit change. A unique reference makes a repeat harmless |
+| `payment_webhook_events` | Each gateway message once, for replay protection |
+| `ai_assessment_jobs.credit_ref` | Which credit to give back if a job fails |
+| `user_profiles.weekly_session_goal`, `reminders_enabled`, `reminder_time`, `reminder_days` | Goals and study reminders |
+| `generated_reports` | Private files made for a student, which expire |
+| `operational_events` | Error counts per minute, with no student data |
+| `learning_resources.file_name`, `file_content_type`, `file_bytes` | Attached documents |
+| Indexes on dates | Analytics and upkeep queries |
+
+**Database rules added:** positive amounts and prices; refunds and credits within their limits; one successful payment per purchase; one open refund per purchase; a trigger (`payment_state_guard`) that blocks confirmed payments going back, success without verification and amount changes.
+
+**`protect_audit_log` changed:** audit entries still can't be deleted, or have what happened changed. The IP address and stored before/after values can now be cleared, for retention and account deletion.
+
+**Money:** whole minor units in integer columns. There are no floats.

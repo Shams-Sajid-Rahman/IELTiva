@@ -2,11 +2,12 @@
 
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, Clock, Headphones, History, Info, Lock, Mic, MonitorPlay, PenLine, Play, Target, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { DeleteRecording, SpeakingFeedback, WritingFeedback } from "@/features/ai/feedback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,12 +35,16 @@ function GridSkeleton() {
 }
 
 export function PracticeHome() {
+  const linkParams = useSearchParams();
   const t = useTranslations("practice");
   const app = useTranslations("app");
   const labels = useLabels();
   const [search, setSearch] = useState("");
   const [examType, setExamType] = useState("");
-  const [skill, setSkill] = useState("");
+  const [skill, setSkill] = useState(() => {
+    const wanted = linkParams.get("skill") ?? "";
+    return ["LISTENING", "READING", "WRITING", "SPEAKING"].includes(wanted) ? wanted : "";
+  });
   const [isMock, setIsMock] = useState("");
   const [page, setPage] = useState(1);
   const debounced = useDebounced(search);
@@ -255,12 +260,12 @@ function SectionResult({ attemptId, section, reviewAllowed }: { attemptId: strin
                 <h3 className="font-sans text-sm font-semibold tracking-normal whitespace-pre-wrap">{item.writingTask.prompt}</h3>
                 <p className="text-muted-foreground mt-1 text-sm">{w("wordCount", { words: item.wordCount, minimum: item.writingTask.minWords })}{item.submittedAt ? ` · ${r("submittedOn", { date: formatDateTime(item.submittedAt) })}` : ""}</p>
                 <p className="mt-3 leading-relaxed break-words whitespace-pre-wrap">{item.text}</p>
+                <div className="mt-4"><WritingFeedback submissionId={item.id} /></div>
               </article>
             ))}
             <div className="bg-muted rounded-lg p-4 text-sm">
               <p className="font-medium">{w("criteriaTitle")}</p>
               <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-5">{WRITING_CRITERIA.map((key) => <li key={key}>{w(`criteria.${key}`)}</li>)}</ul>
-              <p className="mt-3 flex items-start gap-1.5"><Info className="mt-0.5 size-4 shrink-0" aria-hidden /> {w("assessmentLater")}</p>
             </div>
           </>
         )}
@@ -272,10 +277,11 @@ function SectionResult({ attemptId, section, reviewAllowed }: { attemptId: strin
                 <li key={item.id} className="rounded-lg border p-4 text-sm">
                   <p className="font-medium">{item.speakingQuestion.prompt}</p>
                   {item.hasRecording && <RecordingPlayback path={`/attempts/${attemptId}/sections/${section.id}/speaking/${item.speakingQuestion.id}/recording`} />}
+                  {item.hasRecording && <DeleteRecording submissionId={item.id} onDeleted={() => {}} />}
+                  <div className="mt-3"><SpeakingFeedback submissionId={item.id} /></div>
                 </li>
               ))}
             </ul>
-            <p className="bg-muted flex items-start gap-1.5 rounded-lg p-4 text-sm"><Info className="mt-0.5 size-4 shrink-0" aria-hidden /> {t("speaking.assessmentLater")}</p>
           </>
         )}
       </CardContent>

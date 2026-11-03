@@ -442,6 +442,12 @@ Students request export or deletion in settings, tracked in `data_requests`:
 
 Provider data retention terms and backup expiry are described in the privacy policy. Deleted data ages out of backups on the backup schedule.
 
+## 11A. AI as built
+
+Features ask `ai.service.ts` for a task. Only `anthropic.provider.ts` knows the vendor. `prompts.ts` holds versioned prompts, and each is stored so a result can point to the exact text behind it. The worker (`src/worker.ts`) runs queued jobs, and Postgres stays the record of each job's status, so a repeated request or duplicate delivery doesn't pay twice.
+
+Bands are stored for calibration, and `present()` in `assessment.service.ts` removes them unless a `band_releases` row allows them. Speaking bands are always removed. Pronunciation measures come only from Azure's analysis of the audio, and they feed nothing else. The rubric text is IELTiva's own paraphrase, and the instructor must review it.
+
 ## 12A. Practice engine as built
 
 Attempts run on the server. `attempt.service.ts` holds the lifecycle and `marking.ts` holds deterministic marking, with no AI. Each section has its own deadline. Anything past its deadline is closed the next time the attempt is touched, because there are no background workers yet. Row locks make submission atomic and repeatable. Writing submissions get a hidden, empty `assessment_results` row for Phase 5.
@@ -546,3 +552,18 @@ Long SSE connections and ffmpeg are why the API and worker don't run on serverle
 | Instructor approval of final thresholds | They decide when bands go public |
 | Trademark advice | The name could change |
 | Confirm Azure pricing and en-GB status | Secondary and older sources only so far |
+
+## 12B. Phases 6 to 9 as built
+
+Details are in `PAYMENTS.md`, `INFRASTRUCTURE.md`, `SECURITY.md` and `LEGAL_REVIEW.md`. None of this has been run.
+
+- **Payments** (`apps/api/src/services/billing`): gateways sit behind `PaymentProvider`. Only `applyVerified` can mark a payment paid, and only from a server-to-gateway answer.
+- **Entitlements:** credits are used from whichever entitlement expires first, under a row lock, recorded in `credit_ledger`. Premium exams use a credit when started, and AI feedback only when `billing.enforce_credits` is on. Failed AI jobs give the credit back.
+- **Analytics** (`services/analytics`): reads stored records and returns null for what's missing. Raw, estimated and reviewed numbers stay separate. No verified raw-to-band table exists, so **Listening and Reading bands are not calculated**, and band charts stay empty until real bands exist.
+- **Recommendations:** deterministic rules with their evidence attached. AI explains the output and can't add to it.
+- **Storage** (`services/storage`): `PrivateStorage` has local and R2 providers. Access checks come first, then a stream or a short-lived link.
+- **Jobs** (`services/queue`, `worker.ts`): separate queues for AI, audio, reports, email and upkeep, with heartbeats and graceful shutdown.
+- **Cache** (`services/cache.ts`): each key has a scope, and private data never goes to the shared store.
+- **Privacy** (`services/privacy`): export and account deletion. Deletion removes files first, then erases rows in one transaction, keeping only financial records with identity removed.
+
+This replaces the plan in section 12's "User requests" where they differ. In particular, the student stays able to sign in during the cancellation window.

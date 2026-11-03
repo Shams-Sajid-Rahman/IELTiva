@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 4, IELTS practice engine.** The public site, dashboards, courses, and Listening, Reading, Writing, Speaking and mock exams are built. Listening and Reading give raw scores only. Writing and Speaking are stored without scores. AI assessment and payments aren't built yet, production file storage needs Cloudflare R2, and there has been no independent security audit.
+> **Status: Phase 9 finished, not yet run end to end.** Phases 5 to 9 add AI feedback, prepaid packages and payments (sandbox only), analytics, personal study planning, background workers, private file storage, monitoring, account deletion and data export. As the owner asked, none of this has been tested. It passes type checks, lint and production builds only. See [SECURITY.md](SECURITY.md) for what is needed before real use.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -22,7 +22,11 @@ IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band sco
 | [DATABASE_DESIGN.md](DATABASE_DESIGN.md) | Entities, relationships, calibration data, retention |
 | [API_DOCUMENTATION.md](API_DOCUMENTATION.md) | Proposed REST API |
 | [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) | Releases, phases and parallel tracks |
-| [.env.example](.env.example) | Planned environment variables |
+| [PAYMENTS.md](PAYMENTS.md) | Payment flow, gateways, safeguards, setup |
+| [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Worker, Redis, R2, caching, monitoring, deployment |
+| [SECURITY.md](SECURITY.md) | Security controls, review findings, known gaps, launch checks |
+| [LEGAL_REVIEW.md](LEGAL_REVIEW.md) | Data held and questions for a qualified lawyer |
+| [.env.example](.env.example) | Environment variables |
 
 ## Planned stack
 
@@ -151,6 +155,7 @@ Authentication works locally without external accounts, except for real email an
 | Problem | Fix |
 | --- | --- |
 | `EBADENGINE` from npm | Activate Node 24 with `. .\scripts\use-node.ps1` |
+| AI feedback says it isn't available | Set `ANTHROPIC_API_KEY` and `REDIS_URL` in `.env`, then run `npm run worker` in its own terminal. Speaking also needs the Azure values |
 | Exams page is empty | Run `npm run exams:sample` to add short original samples, or create exams at `/admin/exams` |
 | PowerShell blocks the script | Run `Set-ExecutionPolicy -Scope Process Bypass` in that terminal |
 | API exits with `Invalid environment configuration` | Set the named variables in `.env` |

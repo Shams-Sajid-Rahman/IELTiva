@@ -20,8 +20,8 @@ export function createAuthRouter({ env, auth, tokens, google, limits = DEFAULT_R
   const router = Router();
   const controller = createAuthController({ env, auth, tokens, google });
   const { authenticateUser, optionalAuthentication } = createAuthMiddleware({ tokens, auth });
-  const emailLimit = authRateLimit(limits.emailAction);
-  const tokenLimit = authRateLimit(limits.tokenAction);
+  const emailLimit = authRateLimit(limits.emailAction, "email-action");
+  const tokenLimit = authRateLimit(limits.tokenAction, "token-action");
 
   // Account data and tokens must never be stored by browsers or shared caches.
   router.use((_req, res, next) => {
@@ -30,9 +30,9 @@ export function createAuthRouter({ env, auth, tokens, google, limits = DEFAULT_R
   });
 
   router.get("/csrf", controller.csrf);
-  router.post("/register", authRateLimit(limits.register), controller.register);
-  router.post("/login", authRateLimit(limits.login), controller.login);
-  router.post("/refresh", authRateLimit(limits.refresh), controller.refresh);
+  router.post("/register", authRateLimit(limits.register, "register"), controller.register);
+  router.post("/login", authRateLimit(limits.login, "login"), controller.login);
+  router.post("/refresh", authRateLimit(limits.refresh, "refresh"), controller.refresh);
   router.post("/logout", optionalAuthentication, controller.logout);
   router.post("/logout-all", authenticateUser, controller.logoutAll);
   router.get("/me", authenticateUser, controller.me);

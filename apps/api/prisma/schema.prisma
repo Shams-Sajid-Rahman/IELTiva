@@ -180,6 +180,18 @@ enum CalibrationSplit {
   TEST
 }
 
+enum ConsentType {
+  AI_PROCESSING
+  SPEECH_PROCESSING
+  CALIBRATION_USE
+}
+
+enum CalibrationSampleStatus {
+  NEEDS_MARKS
+  NEEDS_ADJUDICATION
+  APPROVED
+}
+
 enum PurchaseStatus {
   PENDING
   PAID
@@ -201,6 +213,24 @@ enum RefundStatus {
   PENDING
   COMPLETED
   FAILED
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum ReportKind {
+  PROGRESS_REPORT
+  DATA_EXPORT
+}
+
+enum PackageCategory {
+  LISTENING
+  READING
+  WRITING
+  SPEAKING
+  FULL_PREPARATION
+  MOCK_TEST
+  CUSTOM
 }
 
 enum EntitlementStatus {
@@ -276,8 +306,17 @@ model User {
   aiJobs                  AIAssessmentJob[]
   aiUsageLogs             AIUsageLog[]
   calibrationMarks        AssessmentCalibrationRecord[]
+  consents                UserConsent[]
+  tutorConversations      TutorConversation[]
+  thresholdsApproved      CalibrationDataset[]          @relation("ThresholdApprover")
+  datasetsFrozen          CalibrationDataset[]          @relation("DatasetFreezer")
+  calibrationRunsCreated  CalibrationRun[]              @relation("RunCreator")
+  calibrationRunsApproved CalibrationRun[]              @relation("RunApprover")
+  bandReleasesApproved    BandRelease[]
   purchases               UserPurchase[]
   entitlements            UserEntitlement[]
+  creditLedger            CreditLedger[]
+  reports                 GeneratedReport[]
   refundsProcessed        RefundRecord[]
   auditLogs               AuditLog[]
   notifications           UserNotification[]
@@ -287,6 +326,7 @@ model User {
 
   @@index([status])
   @@index([deletionScheduledAt])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -303,6 +343,10 @@ model UserProfile {
   examDate          DateTime? @map("exam_date") @db.Date
   weeklyStudyHours  Int?      @map("weekly_study_hours")
   dailyGoalMinutes  Int?      @map("daily_goal_minutes")
+  weeklySessionGoal Int?      @map("weekly_session_goal")
+  remindersEnabled  Boolean   @default(false) @map("reminders_enabled")
+  reminderTime      String?   @map("reminder_time")
+  reminderDays      Int[]     @default([]) @map("reminder_days")
   preferredSkills   Skill[]   @map("preferred_skills")
   notificationPrefs Json?     @map("notification_prefs")
   onboardedAt       DateTime? @map("onboarded_at") @db.Timestamptz(3)
@@ -311,6 +355,7 @@ model UserProfile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([remindersEnabled])
   @@map("user_profiles")
 }
 
@@ -386,6 +431,7 @@ model UserSession {
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
+  @@index([lastSeenAt])
   @@map("user_sessions")
 }
 
@@ -545,6 +591,9 @@ model LearningResource {
   title           String
   body            String?
   storageKey      String?      @map("storage_key")
+  fileName        String?      @map("file_name")
+  fileContentType String?      @map("file_content_type")
+  fileBytes       Int?         @map("file_bytes")
   externalUrl     String?      @map("external_url")
   durationMinutes Int?         @map("duration_minutes")
   deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(3)
@@ -662,6 +711,7 @@ model UserLearningHistory {
   resource LearningResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
 
   @@index([userId, occurredAt(sort: Desc)])
+  @@index([occurredAt])
   @@index([courseId])
   @@index([resourceId])
   @@map("user_learning_history")
@@ -906,6 +956,8 @@ model ExamAttempt {
   @@index([userId, createdAt(sort: Desc)])
   @@index([examVersionId])
   @@index([status, expiresAt])
+  @@index([createdAt])
+  @@index([submittedAt])
   @@map("exam_attempts")
 }
 
@@ -935,6 +987,7 @@ model SectionAttempt {
 
   @@unique([examAttemptId, sectionId])
   @@index([sectionId])
+  @@index([submittedAt])
   @@map("section_attempts")
 }
 
@@ -996,6 +1049,7 @@ model SpeakingSubmission {
   pronunciationFeedback Json?            @map("pronunciation_feedback")
   status                ProcessingStatus @default(PENDING)
   audioDeleteAfter      DateTime?        @map("audio_delete_after") @db.Timestamptz(3)
+  audioDeletedAt        DateTime?        @map("audio_deleted_at") @db.Timestamptz(3)
   submittedAt           DateTime?        @map("submitted_at") @db.Timestamptz(3)
   createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -1105,6 +1159,8 @@ model AIModelConfiguration {
   jobs                 AIAssessmentJob[]
   usageLogs            AIUsageLog[]
   calibrationRecords   AssessmentCalibrationRecord[]
+  calibrationRuns      CalibrationRun[]
+  bandReleases         BandRelease[]
 
   @@unique([taskKey, provider, modelId])
   @@index([instructorApprovedById])
@@ -1125,6 +1181,8 @@ model AIPromptVersion {
   results            AssessmentResult[]
   jobs               AIAssessmentJob[]
   calibrationRecords AssessmentCalibrationRecord[]
+  calibrationRuns    CalibrationRun[]
+  bandReleases       BandRelease[]
 
   @@unique([taskKey, version])
   @@map("ai_prompt_versions")
@@ -1143,6 +1201,7 @@ model AIAssessmentJob {
   attempts             Int              @default(0)
   errorCode            String?          @map("error_code")
   errorMessage         String?          @map("error_message")
+  creditRef            String?          @map("credit_ref")
   queuedAt             DateTime         @default(now()) @map("queued_at") @db.Timestamptz(3)
   startedAt            DateTime?        @map("started_at") @db.Timestamptz(3)
   finishedAt           DateTime?        @map("finished_at") @db.Timestamptz(3)
@@ -1197,6 +1256,8 @@ model AIUsageLog {
 
 model AssessmentCalibrationRecord {
   id                   String                @id @default(uuid(7)) @db.Uuid
+  sampleId             String?               @map("sample_id") @db.Uuid
+  runId                String?               @map("run_id") @db.Uuid
   sampleReference      String                @map("sample_reference")
   datasetVersion       String                @map("dataset_version")
   skill                Skill
@@ -1219,13 +1280,160 @@ model AssessmentCalibrationRecord {
   marker             User?                 @relation(fields: [markerId], references: [id], onDelete: SetNull)
   modelConfiguration AIModelConfiguration? @relation(fields: [modelConfigurationId], references: [id], onDelete: SetNull)
   promptVersion      AIPromptVersion?      @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+  sample             CalibrationSample?    @relation(fields: [sampleId], references: [id], onDelete: Restrict)
+  run                CalibrationRun?       @relation(fields: [runId], references: [id], onDelete: Restrict)
 
+  @@index([sampleId])
+  @@index([runId])
   @@index([datasetVersion, split])
   @@index([sampleReference])
   @@index([markerId])
   @@index([modelConfigurationId])
   @@index([promptVersionId])
   @@map("assessment_calibration_records")
+}
+
+model CalibrationDataset {
+  id                     String           @id @default(uuid(7)) @db.Uuid
+  version                String           @unique
+  skill                  Skill
+  examType               ExamType?        @map("exam_type")
+  taskType               WritingTaskType? @map("task_type")
+  description            String?
+  markTolerance          Decimal          @default(0.5) @map("mark_tolerance") @db.Decimal(2, 1)
+  targetSamples          Int              @default(200) @map("target_samples")
+  targetMae              Decimal          @default(0.50) @map("target_mae") @db.Decimal(3, 2)
+  targetWithinOne        Decimal          @default(0.90) @map("target_within_one") @db.Decimal(3, 2)
+  thresholdsApprovedById String?          @map("thresholds_approved_by_id") @db.Uuid
+  thresholdsApprovedAt   DateTime?        @map("thresholds_approved_at") @db.Timestamptz(3)
+  frozenAt               DateTime?        @map("frozen_at") @db.Timestamptz(3)
+  frozenById             String?          @map("frozen_by_id") @db.Uuid
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  thresholdsApprovedBy User?               @relation("ThresholdApprover", fields: [thresholdsApprovedById], references: [id], onDelete: SetNull)
+  frozenBy             User?               @relation("DatasetFreezer", fields: [frozenById], references: [id], onDelete: SetNull)
+  samples              CalibrationSample[]
+  runs                 CalibrationRun[]
+
+  @@map("calibration_datasets")
+}
+
+model CalibrationSample {
+  id                  String                  @id @default(uuid(7)) @db.Uuid
+  datasetId           String                  @map("dataset_id") @db.Uuid
+  reference           String
+  split               CalibrationSplit
+  prompt              String
+  responseText        String                  @map("response_text")
+  consentVersion      String                  @map("consent_version")
+  deidentifiedAt      DateTime                @map("deidentified_at") @db.Timestamptz(3)
+  status              CalibrationSampleStatus @default(NEEDS_MARKS)
+  finalBand           Decimal?                @map("final_band") @db.Decimal(2, 1)
+  finalCriterionBands Json?                   @map("final_criterion_bands")
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  dataset CalibrationDataset            @relation(fields: [datasetId], references: [id], onDelete: Restrict)
+  records AssessmentCalibrationRecord[]
+
+  @@unique([datasetId, reference])
+  @@index([datasetId, status])
+  @@map("calibration_samples")
+}
+
+model CalibrationRun {
+  id                     String           @id @default(uuid(7)) @db.Uuid
+  datasetId              String           @map("dataset_id") @db.Uuid
+  split                  CalibrationSplit
+  taskKey                String           @map("task_key")
+  modelConfigurationId   String?          @map("model_configuration_id") @db.Uuid
+  promptVersionId        String?          @map("prompt_version_id") @db.Uuid
+  status                 ProcessingStatus @default(PENDING)
+  metrics                Json?
+  errorMessage           String?          @map("error_message")
+  createdById            String?          @map("created_by_id") @db.Uuid
+  instructorApprovedById String?          @map("instructor_approved_by_id") @db.Uuid
+  instructorApprovedAt   DateTime?        @map("instructor_approved_at") @db.Timestamptz(3)
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  dataset              CalibrationDataset            @relation(fields: [datasetId], references: [id], onDelete: Restrict)
+  modelConfiguration   AIModelConfiguration?         @relation(fields: [modelConfigurationId], references: [id], onDelete: SetNull)
+  promptVersion        AIPromptVersion?              @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+  createdBy            User?                         @relation("RunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  instructorApprovedBy User?                         @relation("RunApprover", fields: [instructorApprovedById], references: [id], onDelete: SetNull)
+  records              AssessmentCalibrationRecord[]
+  releases             BandRelease[]
+
+  @@index([datasetId, createdAt(sort: Desc)])
+  @@map("calibration_runs")
+}
+
+model BandRelease {
+  id                   String          @id @default(uuid(7)) @db.Uuid
+  modelConfigurationId String          @map("model_configuration_id") @db.Uuid
+  promptVersionId      String          @map("prompt_version_id") @db.Uuid
+  runId                String          @map("run_id") @db.Uuid
+  examType             ExamType        @map("exam_type")
+  taskType             WritingTaskType @map("task_type")
+  visibility           BandVisibility
+  approvedById         String?         @map("approved_by_id") @db.Uuid
+  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  modelConfiguration AIModelConfiguration @relation(fields: [modelConfigurationId], references: [id], onDelete: Restrict)
+  promptVersion      AIPromptVersion      @relation(fields: [promptVersionId], references: [id], onDelete: Restrict)
+  run                CalibrationRun       @relation(fields: [runId], references: [id], onDelete: Restrict)
+  approvedBy         User?                @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@unique([modelConfigurationId, promptVersionId, examType, taskType], map: "band_releases_scope_key")
+  @@map("band_releases")
+}
+
+model UserConsent {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  type      ConsentType
+  version   String
+  grantedAt DateTime    @map("granted_at") @db.Timestamptz(3)
+  revokedAt DateTime?   @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("user_consents")
+}
+
+model TutorConversation {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages TutorMessage[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("tutor_conversations")
+}
+
+model TutorMessage {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  role           String
+  text           String
+  content        Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  conversation TutorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("tutor_messages")
 }
 
 // ---------- F. Payments and packages ----------
@@ -1287,7 +1495,8 @@ model PaymentGateway {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  transactions PaymentTransaction[]
+  transactions  PaymentTransaction[]
+  webhookEvents PaymentWebhookEvent[]
 
   @@map("payment_gateways")
 }
@@ -1297,9 +1506,11 @@ model UserPurchase {
   userId              String         @map("user_id") @db.Uuid
   practicePackageId   String?        @map("practice_package_id") @db.Uuid
   assessmentPackageId String?        @map("assessment_package_id") @db.Uuid
+  packageId           String?        @map("package_id") @db.Uuid
   status              PurchaseStatus @default(PENDING)
   currency            String         @db.Char(3)
   amountMinor         Int            @map("amount_minor")
+  refundedMinor       Int            @default(0) @map("refunded_minor")
   discountMinor       Int            @default(0) @map("discount_minor")
   packageSnapshot     Json           @map("package_snapshot")
   paidAt              DateTime?      @map("paid_at") @db.Timestamptz(3)
@@ -1309,6 +1520,7 @@ model UserPurchase {
   user              User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
   practicePackage   PracticePackage?     @relation(fields: [practicePackageId], references: [id], onDelete: Restrict)
   assessmentPackage AssessmentPackage?   @relation(fields: [assessmentPackageId], references: [id], onDelete: Restrict)
+  package           Package?             @relation(fields: [packageId], references: [id], onDelete: Restrict)
   transactions      PaymentTransaction[]
   entitlements      UserEntitlement[]
   refunds           RefundRecord[]
@@ -1316,6 +1528,7 @@ model UserPurchase {
   @@index([userId, createdAt(sort: Desc)])
   @@index([practicePackageId])
   @@index([assessmentPackageId])
+  @@index([packageId])
   @@index([status])
   @@map("user_purchases")
 }
@@ -1332,6 +1545,9 @@ model PaymentTransaction {
   currency             String        @db.Char(3)
   amountMinor          Int           @map("amount_minor")
   rawResponse          Json?         @map("raw_response")
+  failureReason        String?       @map("failure_reason")
+  verifiedAt           DateTime?     @map("verified_at") @db.Timestamptz(3)
+  expiresAt            DateTime?     @map("expires_at") @db.Timestamptz(3)
   succeededAt          DateTime?     @map("succeeded_at") @db.Timestamptz(3)
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -1352,6 +1568,7 @@ model UserEntitlement {
   purchaseId          String?           @map("purchase_id") @db.Uuid
   practicePackageId   String?           @map("practice_package_id") @db.Uuid
   assessmentPackageId String?           @map("assessment_package_id") @db.Uuid
+  packageId           String?           @map("package_id") @db.Uuid
   featureKey          String            @map("feature_key")
   status              EntitlementStatus @default(ACTIVE)
   creditsGranted      Int?              @map("credits_granted")
@@ -1366,12 +1583,15 @@ model UserEntitlement {
   purchase          UserPurchase?      @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
   practicePackage   PracticePackage?   @relation(fields: [practicePackageId], references: [id], onDelete: Restrict)
   assessmentPackage AssessmentPackage? @relation(fields: [assessmentPackageId], references: [id], onDelete: Restrict)
+  package           Package?           @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  ledger            CreditLedger[]
 
   @@unique([purchaseId, featureKey])
   @@index([userId, featureKey, status])
   @@index([endsAt])
   @@index([practicePackageId])
   @@index([assessmentPackageId])
+  @@index([packageId])
   @@map("user_entitlements")
 }
 
@@ -1385,6 +1605,9 @@ model RefundRecord {
   currency        String       @db.Char(3)
   amountMinor     Int          @map("amount_minor")
   reason          String?
+  requestedById   String?      @map("requested_by_id") @db.Uuid
+  decisionNote    String?      @map("decision_note")
+  decidedAt       DateTime?    @map("decided_at") @db.Timestamptz(3)
   completedAt     DateTime?    @map("completed_at") @db.Timestamptz(3)
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -1396,7 +1619,141 @@ model RefundRecord {
   @@unique([transactionId, gatewayRefundId])
   @@index([purchaseId])
   @@index([processedById])
+  @@index([status, createdAt])
   @@map("refund_records")
+}
+
+/// One sellable bundle. Prices are kept per currency and features say what the buyer receives.
+model Package {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  code         String          @unique
+  name         String
+  description  String?
+  category     PackageCategory
+  validityDays Int?            @map("validity_days")
+  isActive     Boolean         @default(false) @map("is_active")
+  isFeatured   Boolean         @default(false) @map("is_featured")
+  sortOrder    Int             @default(100) @map("sort_order")
+  deletedAt    DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  prices       PackagePrice[]
+  features     PackageFeature[]
+  purchases    UserPurchase[]
+  entitlements UserEntitlement[]
+
+  @@index([isActive, sortOrder])
+  @@map("packages")
+}
+
+model PackagePrice {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  packageId   String   @map("package_id") @db.Uuid
+  currency    String   @db.Char(3)
+  amountMinor Int      @map("amount_minor")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, currency])
+  @@map("package_prices")
+}
+
+model PackageFeature {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  packageId  String   @map("package_id") @db.Uuid
+  featureKey String   @map("feature_key")
+  /// Null means unlimited use while the package is valid.
+  quantity   Int?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, featureKey])
+  @@map("package_features")
+}
+
+/// Every change to a student's credits. A repeated use of the same item is recorded only once.
+model CreditLedger {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  entitlementId String   @map("entitlement_id") @db.Uuid
+  featureKey    String   @map("feature_key")
+  delta         Int
+  reason        String
+  refType       String?  @map("ref_type")
+  refId         String?  @map("ref_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlement UserEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, featureKey, refType, refId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entitlementId])
+  @@index([createdAt])
+  @@map("credit_ledger")
+}
+
+/// Each notification from a gateway is recorded once, so a replayed one is ignored.
+model PaymentWebhookEvent {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  gatewayId   String    @map("gateway_id") @db.Uuid
+  eventKey    String    @map("event_key")
+  payloadHash String    @map("payload_hash")
+  outcome     String?
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+
+  gateway PaymentGateway @relation(fields: [gatewayId], references: [id], onDelete: Cascade)
+
+  @@unique([gatewayId, eventKey])
+  @@index([receivedAt])
+  @@map("payment_webhook_events")
+}
+
+// ---------- Generated files and operations ----------
+
+/// A file made for one student. The file lives in private storage and expires on its own.
+model GeneratedReport {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  kind         ReportKind
+  status       ProcessingStatus @default(PENDING)
+  storageKey   String?          @map("storage_key")
+  contentType  String?          @map("content_type")
+  fileName     String?          @map("file_name")
+  byteSize     Int?             @map("byte_size")
+  errorMessage String?          @map("error_message")
+  expiresAt    DateTime?        @map("expires_at") @db.Timestamptz(3)
+  finishedAt   DateTime?        @map("finished_at") @db.Timestamptz(3)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("generated_reports")
+}
+
+/// Counts of operational errors per minute, so a storm of failures stays one row. Holds no student data.
+model OperationalEvent {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  source      String
+  code        String
+  message     String?
+  count       Int      @default(1)
+  bucketStart DateTime @map("bucket_start") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([source, code, bucketStart])
+  @@index([bucketStart])
+  @@map("operational_events")
 }
 
 // ---------- G. Platform administration ----------

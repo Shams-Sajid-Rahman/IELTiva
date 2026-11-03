@@ -10,4 +10,6 @@ export type AppDependencies = {
   checkDatabase: DatabaseCheck;
   authRouter?: Router;
   platformRouter?: Router;
+  paymentCallbackRouter?: Router;
+  probeRouter?: Router;
 };

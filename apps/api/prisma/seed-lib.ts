@@ -2,7 +2,7 @@ import type { PrismaClient } from "../src/generated/prisma/client.js";
 import { AITier } from "../src/generated/prisma/enums.js";
 
 const ROLE_MAPPING_SETTING = "seed.role_mapping_version";
-const ROLE_MAPPING_VERSION = 2;
+const ROLE_MAPPING_VERSION = 4;
 
 const roles = [
   { code: "STUDENT", name: "Student", description: "Learner using purchased and free practice" },
@@ -26,7 +26,10 @@ const permissions = [
   ["users.manage", "Suspend and restore users"],
   ["roles.manage", "Change user roles"],
   ["payments.read", "View payments"],
-  ["payments.manage", "Manage packages and refunds"],
+  ["payments.manage", "Manage packages, pricing and payment checks"],
+  ["refunds.manage", "Approve, reject and send refunds"],
+  ["gateways.manage", "Switch payment gateways on and off"],
+  ["operations.read", "View system health, queues and error counts"],
   ["ai.usage.read", "View AI usage and cost"],
   ["ai.configure", "Change AI model configuration"],
   ["ai.band_release", "Approve public band releases"],
@@ -55,6 +58,8 @@ const admin = [
   "users.manage",
   "payments.read",
   "payments.manage",
+  "refunds.manage",
+  "operations.read",
   "ai.usage.read",
   "audit.read",
   "dashboard.admin",
@@ -89,9 +94,12 @@ const settings = [
   { key: "retention.speaking_recordings_days", value: 90, description: "Days before speaking recordings are deleted" },
   { key: "retention.expired_tokens_days", value: 7, description: "Days after expiry before tokens are purged" },
   { key: "retention.data_exports_days", value: 7, description: "Days before data exports are deleted" },
+  { key: "retention.audit_ip_days", value: 365, description: "Days before IP addresses are cleared from the audit log" },
   { key: "privacy.deletion_cancel_window_days", value: 14, description: "Days a deletion request can be canceled" },
   { key: "regions.default", value: "BD", description: "Default region code" },
-  { key: "regions.bd", value: { currency: "BDT", locale: "en", gateways: ["sslcommerz"] }, description: "Bangladesh defaults" },
+  { key: "regions.bd", value: { currency: "BDT", locale: "en", gateways: ["sslcommerz", "aamarpay"] }, description: "Bangladesh defaults" },
+  { key: "billing.enforce_credits", value: false, description: "When true, AI feedback uses package credits. Off until packages are on sale" },
+  { key: "billing.refund_window_days", value: 7, description: "Days after buying that a refund can be requested" },
 ];
 
 const tierTasks: { taskKey: string; tier: AITier; effort: string; envKey: string }[] = [

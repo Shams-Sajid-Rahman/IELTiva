@@ -1,7 +1,13 @@
 import express, { Router, type RequestHandler } from "express";
 import { createPlatformControllers, type PlatformServices } from "../controllers/platform.controllers.js";
 import { requireAnyPermission, requirePermission } from "../middleware/authenticate.js";
+import { sensitiveActionLimit } from "../middleware/rate-limit.js";
+import { createAiRouter } from "./ai.routes.js";
+import { createAnalyticsRouter } from "./analytics.routes.js";
+import { createBillingRouter } from "./billing.routes.js";
 import { createExamRouter } from "./exam.routes.js";
+import { createOpsRouter } from "./ops.routes.js";
+import { createPrivacyRouter } from "./privacy.routes.js";
 
 /** Every route needs a signed-in user. Permissions are enforced here, and ownership inside each service. */
 export function createPlatformRouter(services: PlatformServices, authenticateUser: RequestHandler) {
@@ -17,6 +23,11 @@ export function createPlatformRouter(services: PlatformServices, authenticateUse
   });
 
   r.use(createExamRouter(services));
+  r.use(createAiRouter(services.aiRuntime));
+  r.use(createBillingRouter(services.billing));
+  r.use(createAnalyticsRouter(services.analytics));
+  r.use(createOpsRouter(services));
+  r.use(createPrivacyRouter(services));
 
   r.get("/dashboard/student", c.dashboard.student!);
   r.get("/dashboard/admin", can("dashboard.admin"), c.dashboard.admin!);
@@ -79,8 +90,8 @@ export function createPlatformRouter(services: PlatformServices, authenticateUse
   r.put("/profile/photo", express.raw({ type: () => true, limit: "2mb" }), c.profile.uploadPhoto!);
   r.get("/profile/photo", c.profile.readPhoto!);
   r.delete("/profile/photo", c.profile.removePhoto!);
-  r.post("/profile/password", c.profile.changePassword!);
-  r.post("/profile/email", c.profile.changeEmail!);
+  r.post("/profile/password", sensitiveActionLimit("password"), c.profile.changePassword!);
+  r.post("/profile/email", sensitiveActionLimit("email"), c.profile.changeEmail!);
   r.get("/profile/sessions", c.profile.sessions!);
   r.delete("/profile/sessions", c.profile.revokeOthers!);
   r.delete("/profile/sessions/:id", c.profile.revokeSession!);

@@ -1,4 +1,5 @@
 import type { Actor, Db } from "../types/platform.js";
+import { PREMIUM_FEATURES } from "./billing/entitlement.service.js";
 
 export const canManageAllCourses = (actor: Actor) => actor.permissions.includes("courses.manage_all");
 export const canAuthorCourses = (actor: Actor) => canManageAllCourses(actor) || actor.permissions.includes("courses.manage");
@@ -7,10 +8,10 @@ export function canManageCourse(actor: Actor, course: { instructorId: string | n
   return canManageAllCourses(actor) || (actor.permissions.includes("courses.manage") && course.instructorId === actor.userId);
 }
 
-/** Premium access will come from the future payment phase. Until then, only a granted pass qualifies. */
+/** Premium content opens for anyone with an active pass or an active practice package. */
 export async function hasPremiumAccess(db: Db, userId: string) {
   const count = await db.userEntitlement.count({
-    where: { userId, featureKey: "practice_pass", status: "ACTIVE", startsAt: { lte: new Date() }, OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] },
+    where: { userId, featureKey: { in: [...PREMIUM_FEATURES] }, status: "ACTIVE", startsAt: { lte: new Date() }, OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] },
   });
   return count > 0;
 }

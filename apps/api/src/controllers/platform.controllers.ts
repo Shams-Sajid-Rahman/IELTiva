@@ -44,11 +44,25 @@ import type { ProfileService } from "../services/profile.service.js";
 import type { RoleService } from "../services/role.service.js";
 import type { UserAdminService } from "../services/user-admin.service.js";
 import type { ExamServices } from "../routes/exam.routes.js";
+import type { AiRuntime } from "../services/ai/runtime.js";
+import type { AnalyticsServices } from "../routes/analytics.routes.js";
+import type { BillingRuntime } from "../services/billing/runtime.js";
+import type { ResourceFileService } from "../services/files/resource-files.service.js";
+import type { OperationsService } from "../services/ops/operations.service.js";
+import type { PrivacyService } from "../services/privacy/privacy.service.js";
+import type { ReportService } from "../services/reports/report.service.js";
 import type { Actor } from "../types/platform.js";
 import { sendPage, sendSuccess } from "../utils/api-response.js";
 import { AppError } from "../utils/app-error.js";
 
 export type PlatformServices = ExamServices & {
+  aiRuntime: AiRuntime;
+  billing: BillingRuntime;
+  analytics: AnalyticsServices;
+  operations: OperationsService;
+  reports: ReportService;
+  privacy: PrivacyService;
+  resourceFiles: ResourceFileService;
   admin: AdminService;
   courses: CourseService;
   dashboard: DashboardService;
