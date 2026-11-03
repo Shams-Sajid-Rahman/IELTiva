@@ -32,7 +32,7 @@ Phase 2A implemented this design in `apps/api/prisma/schema.prisma`, with 57 mod
 | `EmailVerificationToken`, `PasswordResetToken` | Hashed, expiring, single-use tokens |
 | `OAuthAccount` | External identity, unique per provider account and per user and provider |
 
-Roles are `STUDENT`, `INSTRUCTOR` (reserved), `MARKER`, `EDITOR`, `ADMIN` and `SUPER_ADMIN`. Only hashes of tokens are stored.
+Roles are `STUDENT`, `INSTRUCTOR` (reserved), `MARKER`, `EDITOR`, `ADMIN` and `SUPER_ADMIN`. Only hashes of tokens are stored. Phase 2B added `failed_login_attempts`, `locked_until` and `terms_accepted_at` to `users`.
 
 ```mermaid
 erDiagram

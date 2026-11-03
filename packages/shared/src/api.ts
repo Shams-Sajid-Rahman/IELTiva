@@ -2,6 +2,7 @@ export const errorCodes = [
   "VALIDATION_ERROR",
   "UNAUTHENTICATED",
   "FORBIDDEN",
+  "CSRF_FAILED",
   "NOT_FOUND",
   "CONFLICT",
   "PAYLOAD_TOO_LARGE",

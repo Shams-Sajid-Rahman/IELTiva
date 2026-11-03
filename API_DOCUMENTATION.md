@@ -2,7 +2,7 @@
 
 **Status:** proposed contract, updated for the decisions of 2026-11-03. Nothing here is implemented yet.
 
-Only the Health endpoints are implemented so far. Table names in later sections come from the Phase 0 design, and [DATABASE_DESIGN.md](DATABASE_DESIGN.md#differences-from-the-phase-0-design) lists what Phase 2A changed. Future endpoints will be reconciled when each is built. Endpoints marked **R2** arrive in Release 2.
+Only the Health and Authentication endpoints are implemented so far. Table names in later sections come from the Phase 0 design, and [DATABASE_DESIGN.md](DATABASE_DESIGN.md#differences-from-the-phase-0-design) lists what Phase 2A changed. Future endpoints will be reconciled when each is built. Endpoints marked **R2** arrive in Release 2.
 
 **Base URL:** `/api/v1`. Local: `http://localhost:5000/api/v1`.
 
@@ -10,7 +10,7 @@ Only the Health endpoints are implemented so far. Table names in later sections 
 
 ### Authentication
 
-The API uses `HttpOnly` cookies, so browser requests send `credentials: "include"`. State-changing requests also send the `X-CSRF-Token` header, matching the readable CSRF cookie.
+The API uses `HttpOnly` cookies, so browser requests send `credentials: "include"`. State-changing requests also send the `X-CSRF-Token` header, matching the readable, signed CSRF cookie from `GET /auth/csrf`.
 
 Access levels below: **Public**, **User** (signed in), **Verified** (email confirmed), **Marker** (assigned calibration samples only), **Editor**, **Admin**, **Super** (`SUPER_ADMIN`). Admin includes Editor, and Super includes Admin. Marker is separate and grants nothing else.
 
@@ -89,32 +89,66 @@ Endpoints that spend credits or start payment accept an `Idempotency-Key` header
 
 ## Authentication
 
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| POST | `/auth/register` | Public | Create account, send verification email |
-| POST | `/auth/login` | Public | Start session |
-| POST | `/auth/logout` | User | End this session |
-| POST | `/auth/logout-all` | User | End all sessions |
-| POST | `/auth/refresh` | Public, with cookie | Rotate tokens |
-| GET | `/auth/csrf` | Public | Issue CSRF token |
-| POST | `/auth/verify-email` | Public | Confirm with token |
-| POST | `/auth/resend-verification` | User | Send again |
-| POST | `/auth/forgot-password` | Public | Always returns 202 |
-| POST | `/auth/reset-password` | Public | Set password, revoke sessions |
-| GET | `/auth/google` | Public | Start Google sign-in |
-| GET | `/auth/google/callback` | Public | Finish Google sign-in |
+Implemented in Phase 2B. Every `POST` needs a CSRF token, so call `GET /auth/csrf` first and send its value in the `X-CSRF-Token` header. Sessions use cookies only, and no token appears in a response body.
 
-Example register request:
+| Method | Path | Access | Purpose | Success | Rate limit per IP, 15 minutes |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/auth/csrf` | Public | Issue a CSRF token | 200 | None |
+| POST | `/auth/register` | Public | Create a student and send a verification email | 201 | 15 |
+| POST | `/auth/login` | Public | Start a session | 200 | 30 |
+| POST | `/auth/refresh` | Refresh cookie | Rotate tokens | 200 | 120 |
+| POST | `/auth/logout` | Public | End this session and clear cookies | 200 | None |
+| POST | `/auth/logout-all` | User | End all sessions | 200 | None |
+| GET | `/auth/me` | User | Current user | 200 | None |
+| POST | `/auth/verify-email` | Public | Confirm with `{ "token" }` | 200 | 30 |
+| POST | `/auth/resend-verification` | Public | Send again with `{ "email" }`. Always 202 | 202 | 10 |
+| POST | `/auth/forgot-password` | Public | Request a reset with `{ "email" }`. Always 202 | 202 | 10 |
+| POST | `/auth/reset-password` | Public | Set a password and end all sessions | 200 | 30 |
+| GET | `/auth/google` | Public | Redirect to Google. `?intent=link` needs a session | 302 | 30 |
+| GET | `/auth/google/callback` | Google | Finish sign-in or linking | 302 | 30 |
+
+Register request:
 
 ```json
 {
-  "email": "student@example.com",
-  "password": "at-least-10-characters",
   "firstName": "Student",
   "lastName": "Example",
-  "acceptTerms": true
+  "email": "student@example.com",
+  "password": "at-least-10-characters",
+  "confirmPassword": "at-least-10-characters",
+  "termsAccepted": true
 }
 ```
+
+Passwords need 10 to 128 characters with a lowercase letter, an uppercase letter and a number. Common words and the email name aren't allowed. Unknown fields such as `role` are rejected.
+
+Register response:
+
+```json
+{
+  "success": true,
+  "message": "Account created. Please verify your email.",
+  "data": {
+    "user": { "id": "0194...", "email": "student@example.com", "firstName": "Student", "lastName": "Example", "emailVerified": false, "roles": ["STUDENT"] },
+    "verificationEmailDelivered": true
+  }
+}
+```
+
+`verificationEmailDelivered` is `true` only when a real provider accepted the email.
+
+| Status | Case |
+| --- | --- |
+| 400 | Invalid input, or an invalid, used or expired link |
+| 401 | Wrong credentials, a locked account, or an ended session, all with generic messages |
+| 403 | `CSRF_FAILED`, or a correct password on a suspended account |
+| 409 | Registering an email that already exists |
+| 429 | Rate limit reached |
+| 503 | Google sign-in not configured |
+
+**Sessions:** access tokens last 15 minutes. Refresh tokens rotate on every use, within a 30-day session. Reusing an old token ends that whole session.
+
+**Google result:** the callback redirects to `<FRONTEND_URL>/auth/google/result` with `status` set to `signed_in`, `linked` or `error`. `reason` is one of `invalid_state`, `google_denied`, `session_changed`, `google_validation_failed`, `email_not_verified`, `account_exists`, `already_linked`, `verify_email_first` or `account_unavailable`. An existing password account is never linked by email. Its owner signs in, verifies their email and uses `?intent=link`.
 
 ## Users
 

@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 2A, database architecture.** The design system, API foundation and database schema exist, so there's no product to use yet.
+> **Status: Phase 2B, authentication backend.** The design system, API, database and authentication endpoints exist, but there are no sign-in pages yet.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -77,7 +77,7 @@ See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) for frontend standards.
 
 PostgreSQL is IELTiva's only primary database, and version 18 is used in development.
 
-1. Copy `.env.example` to `.env`, and replace every database `CHANGE_ME` with one strong password. URL-encode special characters.
+1. Copy `.env.example` to `.env`, and replace every database `CHANGE_ME` with one strong password. URL-encode special characters. Generate different values for `JWT_ACCESS_SECRET` and `CSRF_SECRET`, using the command in the file.
 2. Start a private PostgreSQL instance on port 5433, as shown below.
 3. Apply migrations to both databases and start the API:
 
@@ -117,6 +117,15 @@ Prisma 7 reads its connection from `apps/api/prisma.config.ts`, not the schema, 
 
 Don't use `prisma migrate reset` on any database holding data you need.
 
+### Authentication credentials
+
+Authentication works locally without external accounts, except for real email and Google sign-in.
+
+| Feature | Needs | Without it |
+| --- | --- | --- |
+| Email | `RESEND_API_KEY` and `EMAIL_FROM` | Development prints messages and links to the API terminal, reported as not delivered |
+| Google sign-in | `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, with `<API_BASE_URL>/api/v1/auth/google/callback` as an authorized redirect URI | Google routes return 503 |
+
 ### Troubleshooting
 
 | Problem | Fix |
@@ -124,6 +133,7 @@ Don't use `prisma migrate reset` on any database holding data you need.
 | `EBADENGINE` from npm | Activate Node 24 with `. .\scripts\use-node.ps1` |
 | PowerShell blocks the script | Run `Set-ExecutionPolicy -Scope Process Bypass` in that terminal |
 | API exits with `Invalid environment configuration` | Set the named variables in `.env` |
+| POST requests return `CSRF_FAILED` | Call `GET /api/v1/auth/csrf` and send the token in `X-CSRF-Token` |
 | Health returns 503 | Start PostgreSQL, and check the host, port and password in `DATABASE_URL` |
 | Cannot find `generated/prisma` | Run `npm run db:generate` |
 | Next.js says another build is running | Stop any running `next dev` or `next start` |

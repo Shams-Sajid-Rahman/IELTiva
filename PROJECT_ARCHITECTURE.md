@@ -357,6 +357,10 @@ AI feedback is in English at launch because it assesses English writing. A trans
 
 ## 11. Authentication and authorization
 
+**Implemented in Phase 2B.** `services/auth.service.ts` holds the logic. `middleware/authenticate.ts` provides `authenticateUser`, `optionalAuthentication`, `requireRole` and `requirePermission`. Access tokens identify only the user and session, so status, roles and permissions are read from the database on each request. Email and Google sit behind `EmailProvider` and `OAuthProvider`. Rate limits are held in memory per process until Redis is added.
+
+Google identities are never linked automatically by email, which prevents someone pre-registering a victim's address and sharing their account.
+
 - Email and password with Argon2id, plus Google sign-in.
 - Email verification before AI features or payment.
 - A 15-minute access JWT and a 30-day refresh token, in `HttpOnly`, `Secure`, `SameSite=Lax` cookies.
