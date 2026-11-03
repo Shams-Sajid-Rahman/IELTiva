@@ -146,6 +146,8 @@ Register response:
 | 429 | Rate limit reached |
 | 503 | The Google callback was called without Google configured. `GET /auth/google` redirects with `google_unavailable` instead |
 
+Auth responses use `Cache-Control: no-store`. Recovery emails are limited to one per address per minute, with the same response either way.
+
 **Sessions:** access tokens last 15 minutes. Refresh tokens rotate on every use, within a 30-day session. Reusing an old token ends that whole session.
 
 **Google result:** the callback redirects to `<FRONTEND_URL>/auth/google/result` with `status` set to `signed_in`, `linked` or `error`. `reason` is one of `invalid_state`, `google_denied`, `google_unavailable`, `session_changed`, `google_validation_failed`, `email_not_verified`, `account_exists`, `already_linked`, `verify_email_first` or `account_unavailable`. An existing password account is never linked by email. Its owner signs in, verifies their email and uses `?intent=link`.

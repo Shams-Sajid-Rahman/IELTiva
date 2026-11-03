@@ -14,7 +14,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
   const points = [t("panelPoint1"), t("panelPoint2"), t("panelPoint3")];
 
   return (
-    <div className="grid lg:grid-cols-[1fr_minmax(0,28rem)] xl:grid-cols-[1fr_32rem]">
+    <div className="grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[1fr_minmax(0,28rem)] xl:grid-cols-[1fr_32rem]">
       <div className="flex justify-center px-4 py-10 sm:px-6 sm:py-16">
         <Reveal className="w-full max-w-md">{children}</Reveal>
       </div>

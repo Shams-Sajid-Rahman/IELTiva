@@ -21,6 +21,11 @@ function normalize(error: unknown): Normalized {
   if (type === "entity.too.large") {
     return { status: 413, code: "PAYLOAD_TOO_LARGE", message: "The request is too large." };
   }
+  // Other client errors from Express, such as a malformed URL or an unsupported encoding.
+  const status = (error as { status?: unknown } | null)?.status;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    return { status, code: "VALIDATION_ERROR", message: "This request couldn't be processed." };
+  }
   return { status: 500, code: "INTERNAL_ERROR", message: "Something went wrong on our side. Please try again." };
 }
 

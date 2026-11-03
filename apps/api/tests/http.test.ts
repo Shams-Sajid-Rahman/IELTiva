@@ -43,6 +43,12 @@ describe("error handling", () => {
     expect(json.body.error.code).toBe("PAYLOAD_TOO_LARGE");
   });
 
+  it("keeps other client errors as client errors, such as an unsupported charset", async () => {
+    const res = await request(buildApp()).post("/api/v1/health").set("Content-Type", "application/json; charset=unknown").send("{}");
+    expect(res.status).toBe(415);
+    expect(res.body.success).toBe(false);
+  });
+
   it("passes through AppError status, code and details", async () => {
     const res = await request(appThatThrows(new AppError(409, "CONFLICT", "Already done", { id: 1 }))).get("/boom");
     expect(res.status).toBe(409);

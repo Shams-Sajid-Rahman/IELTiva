@@ -86,13 +86,17 @@ for (const width of widths) {
   }
 }
 
-test("registration, sign-in, restored session, refresh and sign-out work against the real API", async ({ page, context }) => {
+test("the full student journey works against the real API", async ({ page, context, playwright }) => {
   const email = newEmail();
   await registerViaUi(page, email);
+  const verification = await insertToken("email_verification_tokens", email);
+  await page.goto(`/verify-email?token=${verification}`);
+  await expect(page).toHaveURL(/\/verify-email\/success$/);
   await loginViaUi(page, email);
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Welcome, Ayesha" })).toBeVisible();
   await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByText("Verified", { exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Welcome, Ayesha" })).toBeVisible();
@@ -116,10 +120,38 @@ test("registration, sign-in, restored session, refresh and sign-out work against
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: path.join(shots, "dashboard-1440-light.png"), fullPage: true });
 
+  // Keep this session's cookies, to prove they stop working after sign-out.
+  const before = await context.cookies();
+  const cookieHeader = before.map((c) => `${c.name}=${c.value}`).join("; ");
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login\?next=%2Fdashboard$/);
+
+  const replay = await playwright.request.newContext({ extraHTTPHeaders: { Cookie: cookieHeader } });
+  expect((await replay.get("http://localhost:5100/api/v1/auth/me")).status()).toBe(401);
+  await replay.dispose();
+});
+
+test("security headers are sent, and an unsafe next path stays on this site", async ({ page, request }) => {
+  const headers = (await request.get("/login")).headers();
+  expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  expect(headers["x-frame-options"]).toBe("DENY");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+
+  const email = newEmail();
+  await registerViaUi(page, email);
+  await page.goto("/login?next=/%09/evil.example");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in", exact: true }).last().click();
+  await expect(page).toHaveURL("http://localhost:3100/dashboard");
+});
+
+test("the reset token leaves the address bar once read", async ({ page }) => {
+  await page.goto(`/reset-password?token=${"t".repeat(40)}`);
+  await expect(page.getByLabel("New password")).toBeVisible();
+  await expect(page).toHaveURL(/\/reset-password$/);
 });
 
 test("a wrong password shows a clear error and stays on the page", async ({ page }) => {

@@ -81,9 +81,14 @@ export function createApiClient({ baseUrl, fetcher }: Options) {
     return code === "CSRF_FAILED" ? send(method, path, body, await getCsrfToken(true)) : response;
   }
 
-  /** Concurrent 401s share one refresh, because a second use of a refresh token ends the session. */
+  /**
+   * Concurrent 401s share one refresh, because a second use of a refresh token ends the session.
+   * A browser lock extends this across tabs. A waiting tab then sends the newest cookie.
+   */
   function refreshSession() {
-    refreshing ??= sendWithCsrf("POST", "/auth/refresh", {})
+    const run = () => sendWithCsrf("POST", "/auth/refresh", {});
+    const locks = globalThis.navigator?.locks;
+    refreshing ??= (locks ? locks.request("ieltiva-session-refresh", run) : run())
       .then((response) => response.ok)
       .catch(() => false)
       .finally(() => {

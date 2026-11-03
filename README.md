@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 2C, frontend authentication.** Sign-in works end to end, with placeholder dashboards. Learning features aren't built yet.
+> **Status: Phase 2D, security review.** The database and sign-in system are built and reviewed, with placeholder dashboards. Learning features aren't built yet, and there has been no independent security audit.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -116,6 +116,14 @@ Prisma 7 reads its connection from `apps/api/prisma.config.ts`, not the schema, 
 | Load default roles, permissions, modules and settings. Safe to repeat | `npm run db:seed` |
 
 Don't use `prisma migrate reset` on any database holding data you need.
+
+### Authentication flow
+
+1. The browser gets a CSRF token from `GET /api/v1/auth/csrf`.
+2. Login sets a 15-minute access cookie and a 30-day refresh cookie, both HTTP-only.
+3. Each request is checked against the database, so ending a session or suspending an account takes effect at once.
+4. When the access token expires, the web client refreshes once, and the old refresh token stops working.
+5. Reusing an old refresh token ends that session. Logout, logout-all and password reset end sessions too.
 
 ### Authentication credentials
 

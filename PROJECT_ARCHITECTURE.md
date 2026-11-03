@@ -359,6 +359,8 @@ AI feedback is in English at launch because it assesses English writing. A trans
 
 **Implemented in Phase 2B.** `services/auth.service.ts` holds the logic. `middleware/authenticate.ts` provides `authenticateUser`, `optionalAuthentication`, `requireRole` and `requirePermission`. Access tokens identify only the user and session, so status, roles and permissions are read from the database on each request. Email and Google sit behind `EmailProvider` and `OAuthProvider`. Rate limits are held in memory per process until Redis is added.
 
+Phase 2D made multi-step writes atomic, added a 60-second per-address limit on recovery emails, required `NODE_ENV`, set `no-store` on auth responses and added web security headers. The web app has no full script Content Security Policy yet.
+
 Google identities are never linked automatically by email, which prevents someone pre-registering a victim's address and sharing their account.
 
 - Email and password with Argon2id, plus Google sign-in.

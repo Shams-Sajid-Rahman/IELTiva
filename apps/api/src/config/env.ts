@@ -10,7 +10,8 @@ const secret = z
 
 const envSchema = z
   .object({
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // Required, so a forgotten setting can't silently switch a server into development behaviour.
+    NODE_ENV: z.enum(["development", "test", "production"]),
     PORT: z.coerce.number().int().min(1).max(65535).default(5000),
     DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a PostgreSQL connection URL"),
     FRONTEND_URL: z.url(),

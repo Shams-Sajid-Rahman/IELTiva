@@ -324,6 +324,7 @@ model UserRole {
 
   @@id([userId, roleId])
   @@index([roleId])
+  @@index([assignedById])
   @@map("user_roles")
 }
 
@@ -504,9 +505,10 @@ model LearningResource {
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  section  CourseSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  progress LearningProgress[]
-  history  UserLearningHistory[]
+  section        CourseSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress       LearningProgress[]
+  studyPlanTasks StudyPlanTask[]
+  history        UserLearningHistory[]
 
   @@unique([sectionId, position])
   @@map("learning_resources")
@@ -582,9 +584,11 @@ model StudyPlanTask {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  plan StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan     StudyPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  resource LearningResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
 
   @@index([planId, scheduledDate])
+  @@index([resourceId])
   @@map("study_plan_tasks")
 }
 
@@ -653,6 +657,8 @@ model ExamVersion {
 
   @@unique([examId, versionNumber])
   @@index([status])
+  @@index([createdById])
+  @@index([reviewedById])
   @@map("exam_versions")
 }
 

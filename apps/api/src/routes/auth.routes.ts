@@ -23,6 +23,12 @@ export function createAuthRouter({ env, auth, tokens, google, limits = DEFAULT_R
   const emailLimit = authRateLimit(limits.emailAction);
   const tokenLimit = authRateLimit(limits.tokenAction);
 
+  // Account data and tokens must never be stored by browsers or shared caches.
+  router.use((_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
+
   router.get("/csrf", controller.csrf);
   router.post("/register", authRateLimit(limits.register), controller.register);
   router.post("/login", authRateLimit(limits.login), controller.login);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseEnv } from "../src/config/env.js";
 
 const valid = {
+  NODE_ENV: "development",
   FRONTEND_URL: "http://localhost:3000",
   API_BASE_URL: "http://localhost:5000",
   DATABASE_URL: "postgresql://u:secret-value@localhost:5433/db",
@@ -13,14 +14,13 @@ describe("parseEnv", () => {
   it("applies defaults and converts numbers", () => {
     const env = parseEnv({ ...valid, PORT: "5050" });
     expect(env.PORT).toBe(5050);
-    expect(env.NODE_ENV).toBe("development");
     expect(env.LOG_LEVEL).toBe("info");
     expect(env.ACCESS_TOKEN_MINUTES).toBe(15);
     expect(env.COOKIE_SECURE).toBe(false);
   });
 
   it("names every invalid variable", () => {
-    expect(() => parseEnv({ PORT: "99999" })).toThrow(/PORT[\s\S]*DATABASE_URL[\s\S]*FRONTEND_URL[\s\S]*API_BASE_URL[\s\S]*JWT_ACCESS_SECRET[\s\S]*CSRF_SECRET/);
+    expect(() => parseEnv({ PORT: "99999" })).toThrow(/NODE_ENV[\s\S]*PORT[\s\S]*DATABASE_URL[\s\S]*FRONTEND_URL[\s\S]*API_BASE_URL[\s\S]*JWT_ACCESS_SECRET[\s\S]*CSRF_SECRET/);
   });
 
   it("accepts only PostgreSQL and doesn't print the value", () => {

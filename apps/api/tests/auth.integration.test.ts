@@ -343,6 +343,7 @@ describe("email verification", () => {
     const { app } = makeApp();
     const c = await registeredClient(app, false);
     const first = mail.tokenFor(c.email)!;
+    await prisma.emailVerificationToken.updateMany({ where: { user: { email: c.email } }, data: { createdAt: new Date(Date.now() - 120_000) } });
     const known = await c.post("/resend-verification", { email: c.email }).expect(202);
     const unknown = await c.post("/resend-verification", { email: "nobody@example.com" }).expect(202);
     expect(known.body.message).toBe(unknown.body.message);

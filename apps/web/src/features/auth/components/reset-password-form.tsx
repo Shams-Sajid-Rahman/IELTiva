@@ -6,7 +6,7 @@ import { CheckCircle2, LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -21,7 +21,8 @@ const formSchema = z
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth");
-  const token = useSearchParams().get("token");
+  const params = useSearchParams();
+  const [token] = useState(() => params.get("token"));
   const { refreshUser } = useAuth();
   const [done, setDone] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -30,6 +31,11 @@ export function ResetPasswordForm() {
     defaultValues: { password: "", confirmPassword: "" },
   });
   const password = useWatch({ control, name: "password" });
+
+  useEffect(() => {
+    // Keeps the single-use token out of browser history once it has been read.
+    if (token) window.history.replaceState(null, "", window.location.pathname);
+  }, [token]);
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);

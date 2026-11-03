@@ -1,6 +1,6 @@
 # IELTiva Database Design
 
-**Status:** implemented in Phase 2A. **Database:** PostgreSQL 18 with Prisma 7.
+**Status:** implemented in Phase 2A and reviewed in Phase 2D. **Database:** PostgreSQL 18 with Prisma 7.
 
 ## Current state
 
@@ -196,7 +196,7 @@ erDiagram
 
 ## Indexing strategy
 
-- Every foreign key used for lookups has an index, or leads a unique index.
+- Every foreign key has an index, or leads a unique index. Phase 2D verified this with a catalog query and added the missing ones.
 - History screens use `(user_id, created_at DESC)` style indexes.
 - Worker scans use status plus time, such as `(status, queued_at)` and `(status, expires_at)`.
 - Cost reports use `created_at`, `(task_key, created_at)` and `(user_id, created_at)` on `ai_usage_logs`.

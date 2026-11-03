@@ -61,6 +61,22 @@ describe("api client", () => {
     expect(calls.filter((c) => c.path === "/auth/refresh")).toHaveLength(1);
   });
 
+  it("uses a browser lock so other tabs can't refresh at the same time", async () => {
+    const request = vi.fn((_name: string, work: () => Promise<Response>) => work());
+    vi.stubGlobal("navigator", { locks: { request } });
+    let refreshed = false;
+    const { fetcher } = mockFetch((path) => {
+      if (path === "/auth/refresh") {
+        refreshed = true;
+        return json(200, null);
+      }
+      return refreshed ? json(200, "ok") : apiError(401, "UNAUTHENTICATED", "No");
+    });
+    await expect(client(fetcher).get("/thing")).resolves.toBe("ok");
+    vi.unstubAllGlobals();
+    expect(request).toHaveBeenCalledWith("ieltiva-session-refresh", expect.any(Function));
+  });
+
   it("reports an expired session when refresh fails", async () => {
     const { fetcher } = mockFetch(() => apiError(401, "UNAUTHENTICATED", "Ended"));
     const api = client(fetcher);

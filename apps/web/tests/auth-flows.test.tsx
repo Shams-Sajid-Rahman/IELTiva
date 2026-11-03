@@ -285,7 +285,7 @@ describe("route protection", () => {
   it("sends staff and students to the right home, and rejects unsafe redirects", () => {
     expect(homePathFor({ roles: ["ADMIN"] })).toBe("/admin");
     expect(homePathFor({ roles: ["STUDENT"] })).toBe("/dashboard");
-    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "/login", "/register?x=1", null]) {
+    for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "/login", "/register?x=1", "/\t/evil.example", "/\n/evil.example", null]) {
       expect(safeNextPath(bad)).toBeNull();
     }
     expect(safeNextPath("/dashboard")).toBe("/dashboard");

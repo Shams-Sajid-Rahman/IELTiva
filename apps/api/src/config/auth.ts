@@ -10,6 +10,9 @@ export const OAUTH_FLOW_MINUTES = 10;
 export const EMAIL_VERIFICATION_HOURS = 24;
 export const PASSWORD_RESET_MINUTES = 60;
 
+/** One recovery email per address in this period, whichever IP asks. */
+export const EMAIL_COOLDOWN_SECONDS = 60;
+
 export const MAX_FAILED_LOGINS = 10;
 export const LOCKOUT_MINUTES = 15;
 

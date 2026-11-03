@@ -1,6 +1,6 @@
 # IELTiva Development Roadmap
 
-**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is complete. Phase 2A (database architecture) is complete. Phase 2B (authentication backend) is complete. Phase 2C (frontend authentication) is built and awaits owner review. Phase 2D hasn't started.
+**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is complete. Phase 2A (database architecture) is complete. Phase 2B (authentication backend) is complete. Phase 2C (frontend authentication) is complete. Phase 2D (security review) is complete and awaits owner review. Phase 3 hasn't started.
 
 Each phase ends with something testable and needs owner approval before the next begins. Durations are rough estimates for one full-time developer with AI assistance, and exclude content creation and marking.
 
