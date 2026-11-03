@@ -1,0 +1,27 @@
+{
+  "name": "ieltiva",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-assisted IELTS preparation platform",
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": ">=24.22.1 <25",
+    "npm": ">=11.19.1"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @ieltiva/web",
+    "build": "npm run build -w @ieltiva/web",
+    "start": "npm run start -w @ieltiva/web",
+    "lint": "npm run lint -w @ieltiva/web",
+    "typecheck": "npm run typecheck -w @ieltiva/web",
+    "test": "npm run test -w @ieltiva/web",
+    "test:e2e": "npm run test:e2e -w @ieltiva/web"
+  },
+  "devDependencies": {
+    "@prisma/client": "7.10.1",
+    "prisma": "7.10.1"
+  }
+}
