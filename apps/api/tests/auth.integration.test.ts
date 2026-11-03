@@ -143,6 +143,7 @@ describe("registration", () => {
     const res = await c.post("/register", registration(email.toUpperCase())).expect(201);
 
     expect(res.body.data.user).toMatchObject({ email, emailVerified: false, roles: ["STUDENT"], firstName: "Ayesha" });
+    expect(res.body.data.user.permissions).toEqual(expect.arrayContaining(["attempts.own", "content.read"]));
     expect(res.body.data.verificationEmailDelivered).toBe(true);
     expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|password_hash|Str0ng/);
 
@@ -492,9 +493,9 @@ describe("Google sign-in", () => {
   const reason = (res: request.Response) => new URL(res.headers.location!).searchParams.get("reason");
   const status = (res: request.Response) => new URL(res.headers.location!).searchParams.get("status");
 
-  it("returns 503 when Google isn't configured", async () => {
+  it("explains when Google isn't configured", async () => {
     const { app } = makeApp(OPEN_LIMITS, null);
-    await request(app).get(`${API}/google`).expect(503);
+    expect(reason(await request(app).get(`${API}/google`).expect(302))).toBe("google_unavailable");
     await request(app).get(`${API}/google/callback?state=a&code=b`).expect(503);
   });
 

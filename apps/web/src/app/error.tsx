@@ -10,7 +10,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
 
   return (
     <Container className="py-24">
-      <EmptyState
+      <EmptyState headingLevel={1}
         title={t("errorTitle")}
         description={t("errorBody")}
         action={<Button onClick={reset}>{t("retry")}</Button>}

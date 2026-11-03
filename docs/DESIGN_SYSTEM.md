@@ -12,7 +12,7 @@ Standards for all frontend work. See it running at `/design-system`.
 | `apps/web/src/components/layout/` | Providers, container, section, header, footer, theme toggle |
 | `apps/web/src/components/motion/` | Reveal, stagger and hover effects |
 | `apps/web/src/components/feedback/` | Band score, stat card, empty state |
-| `apps/web/src/features/` | Feature code, from Phase 2 |
+| `apps/web/src/features/` | Feature code. `auth/` holds the session provider, route guards and sign-in forms |
 | `apps/web/messages/` | Interface text per language |
 
 ## Rules

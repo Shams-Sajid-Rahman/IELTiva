@@ -118,7 +118,11 @@ export function createAuthController({ env, auth, tokens, google }: Deps) {
     }) as RequestHandler,
 
     googleStart: (async (req, res) => {
-      if (!google) throw new AppError(503, "SERVICE_UNAVAILABLE", "Google sign-in isn't available.");
+      // People reach this by navigation, so they get a readable page rather than raw JSON.
+      if (!google) {
+        redirectResult(res, "error", "google_unavailable");
+        return;
+      }
       const { intent } = googleStartSchema.parse(req.query);
       if (intent === "link" && !req.auth) throw new AppError(401, "UNAUTHENTICATED", "Please sign in to link your Google account.");
       const flow = { state: random(), nonce: random(), codeVerifier: random() };

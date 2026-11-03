@@ -1,6 +1,6 @@
 # IELTiva Development Roadmap
 
-**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is complete. Phase 2A (database architecture) is complete. Phase 2B (authentication backend) is built and awaits owner review. Phase 2C hasn't started.
+**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is complete. Phase 2A (database architecture) is complete. Phase 2B (authentication backend) is complete. Phase 2C (frontend authentication) is built and awaits owner review. Phase 2D hasn't started.
 
 Each phase ends with something testable and needs owner approval before the next begins. Durations are rough estimates for one full-time developer with AI assistance, and exclude content creation and marking.
 
@@ -62,6 +62,12 @@ The complete PostgreSQL schema, migration, seed and tests, with no feature code.
 Registration, login, rotating sessions, email verification, password recovery, Google sign-in, access-control middleware and CSRF protection, with no frontend pages.
 
 **Done when:** automated tests pass against an isolated database and the owner approves. Live email and Google checks need real credentials.
+
+### Phase 2C: Frontend authentication
+
+Sign-in pages, API client, session state, route guards and placeholder dashboards.
+
+**Done when:** browser tests pass against the real API at every width and theme, and the owner approves.
 
 ### Phase 2: Public website, authentication and dashboard (2 weeks)
 

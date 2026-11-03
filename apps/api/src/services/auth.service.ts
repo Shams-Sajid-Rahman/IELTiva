@@ -51,6 +51,7 @@ function toAuthUser(user: LoadedUser): AuthUser {
     lastName: user.profile?.lastName ?? "",
     emailVerified: user.emailVerifiedAt !== null,
     roles: user.userRoles.map(({ role }) => role.code) as AuthUser["roles"],
+    permissions: [...new Set(user.userRoles.flatMap(({ role }) => role.permissions.map(({ permission }) => permission.code)))],
   };
 }
 

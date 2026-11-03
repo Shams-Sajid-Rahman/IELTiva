@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 2B, authentication backend.** The design system, API, database and authentication endpoints exist, but there are no sign-in pages yet.
+> **Status: Phase 2C, frontend authentication.** Sign-in works end to end, with placeholder dashboards. Learning features aren't built yet.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -69,7 +69,7 @@ Open http://localhost:3000, and http://localhost:3000/design-system for the comp
 | `npm run lint` | Check code style |
 | `npm test` | API and component tests |
 | `npm run build` | Production build of shared, API and web |
-| `npm run test:e2e` | Browser, responsive and accessibility tests. Build first with `DESIGN_SYSTEM_ENABLED=true`. Uses installed Chrome, and updates `docs/screenshots/phase-1` |
+| `npm run build:e2e`, then `npm run test:e2e` | Browser, responsive and accessibility tests against the real API. Needs PostgreSQL running, `npm run build -w @ieltiva/api`, and `ieltiva_test` migrated and seeded. Uses installed Chrome, and updates `docs/screenshots` |
 
 See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) for frontend standards.
 
@@ -124,7 +124,7 @@ Authentication works locally without external accounts, except for real email an
 | Feature | Needs | Without it |
 | --- | --- | --- |
 | Email | `RESEND_API_KEY` and `EMAIL_FROM` | Development prints messages and links to the API terminal, reported as not delivered |
-| Google sign-in | `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, with `<API_BASE_URL>/api/v1/auth/google/callback` as an authorized redirect URI | Google routes return 503 |
+| Google sign-in | `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, with `<API_BASE_URL>/api/v1/auth/google/callback` as an authorized redirect URI | The button shows a clear "not available" page |
 
 ### Troubleshooting
 

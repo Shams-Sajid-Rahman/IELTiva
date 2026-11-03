@@ -9,7 +9,7 @@ export default async function NotFound() {
 
   return (
     <Container className="py-24">
-      <EmptyState
+      <EmptyState headingLevel={1}
         title={t("errors.notFoundTitle")}
         description={t("errors.notFoundBody")}
         action={

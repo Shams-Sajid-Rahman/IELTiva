@@ -4,6 +4,8 @@ import { afterEach, vi } from "vitest";
 
 afterEach(cleanup);
 
+import "./auth-mocks";
+
 // Browser APIs that jsdom doesn't implement but Radix and Motion expect.
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 vi.stubGlobal("IntersectionObserver", class { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } });

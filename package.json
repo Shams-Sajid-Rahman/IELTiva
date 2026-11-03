@@ -1,38 +1,39 @@
 {
-    "name":  "ieltiva",
-    "version":  "0.1.0",
-    "private":  true,
-    "description":  "AI-assisted IELTS preparation platform",
-    "packageManager":  "npm@11.19.1",
-    "engines":  {
-                    "node":  "\u003e=24.22.1 \u003c25",
-                    "npm":  "\u003e=11.19.1"
-                },
-    "workspaces":  [
-                       "apps/*",
-                       "packages/*"
-                   ],
-    "scripts":  {
-                    "dev":  "npm run dev -w @ieltiva/web",
-                    "dev:api":  "npm run dev -w @ieltiva/api",
-                    "build":  "npm run build -w @ieltiva/shared \u0026\u0026 npm run build -w @ieltiva/api \u0026\u0026 npm run build -w @ieltiva/web",
-                    "start:api":  "npm run start -w @ieltiva/api",
-                    "start":  "npm run start -w @ieltiva/web",
-                    "lint":  "npm run lint -w @ieltiva/api \u0026\u0026 npm run lint -w @ieltiva/web",
-                    "typecheck":  "npm run typecheck -w @ieltiva/shared \u0026\u0026 npm run typecheck -w @ieltiva/api \u0026\u0026 npm run typecheck -w @ieltiva/web",
-                    "test":  "npm run test -w @ieltiva/api \u0026\u0026 npm run test -w @ieltiva/web",
-                    "test:api":  "npm run test -w @ieltiva/api",
-                    "test:e2e":  "npm run test:e2e -w @ieltiva/web",
-                    "test:db":  "npm run test:db -w @ieltiva/api",
-                    "db:migrate":  "npm run db:migrate -w @ieltiva/api",
-                    "db:deploy":  "npm run db:deploy -w @ieltiva/api",
-                    "db:validate":  "npm run db:validate -w @ieltiva/api",
-                    "db:generate":  "npm run db:generate -w @ieltiva/api",
-                    "db:status":  "npm run db:status -w @ieltiva/api",
-                    "db:seed":  "npm run db:seed -w @ieltiva/api"
-                },
-    "allowScripts":  {
-                         "prisma@7.10.1":  true,
-                         "@prisma/engines@7.10.1":  true
-                     }
+  "name": "ieltiva",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-assisted IELTS preparation platform",
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": ">=24.22.1 <25",
+    "npm": ">=11.19.1"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @ieltiva/web",
+    "dev:api": "npm run dev -w @ieltiva/api",
+    "build": "npm run build -w @ieltiva/shared && npm run build -w @ieltiva/api && npm run build -w @ieltiva/web",
+    "start:api": "npm run start -w @ieltiva/api",
+    "start": "npm run start -w @ieltiva/web",
+    "lint": "npm run lint -w @ieltiva/api && npm run lint -w @ieltiva/web",
+    "typecheck": "npm run typecheck -w @ieltiva/shared && npm run typecheck -w @ieltiva/api && npm run typecheck -w @ieltiva/web",
+    "test": "npm run test -w @ieltiva/api && npm run test -w @ieltiva/web",
+    "test:api": "npm run test -w @ieltiva/api",
+    "test:e2e": "npm run test:e2e -w @ieltiva/web",
+    "test:db": "npm run test:db -w @ieltiva/api",
+    "db:migrate": "npm run db:migrate -w @ieltiva/api",
+    "db:deploy": "npm run db:deploy -w @ieltiva/api",
+    "db:validate": "npm run db:validate -w @ieltiva/api",
+    "db:generate": "npm run db:generate -w @ieltiva/api",
+    "db:status": "npm run db:status -w @ieltiva/api",
+    "db:seed": "npm run db:seed -w @ieltiva/api",
+    "build:e2e": "npm run build -w @ieltiva/shared && npm run build:e2e -w @ieltiva/web"
+  },
+  "allowScripts": {
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true
+  }
 }
