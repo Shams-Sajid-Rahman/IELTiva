@@ -23,8 +23,6 @@
     "test": "npm run test -w @ieltiva/api && npm run test -w @ieltiva/web",
     "test:api": "npm run test -w @ieltiva/api",
     "test:e2e": "npm run test:e2e -w @ieltiva/web",
-    "db:up": "docker compose up -d --wait postgres",
-    "db:down": "docker compose down",
     "test:db": "npm run test:db -w @ieltiva/api",
     "db:migrate": "npm run db:migrate -w @ieltiva/api",
     "db:deploy": "npm run db:deploy -w @ieltiva/api",

@@ -40,7 +40,7 @@ IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band sco
 
 IELTiva requires **Node.js 24.22.1 or a newer 24.x release and npm 11.19.1 or newer**, as set in `package.json`, `.nvmrc` and `.node-version`. `.npmrc` makes npm refuse other Node versions in this project.
 
-The API needs PostgreSQL 18. Later phases also need Docker for local Redis, and speaking features need ffmpeg.
+The API needs PostgreSQL 18. Later phases also need a local Redis, and speaking features need ffmpeg. IELTiva doesn't use Docker.
 
 ### Isolated Node 24 on Windows
 
@@ -78,7 +78,7 @@ See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) for frontend standards.
 PostgreSQL is IELTiva's only primary database, and version 18 is used in development.
 
 1. Copy `.env.example` to `.env`, and replace every database `CHANGE_ME` with one strong password. URL-encode special characters.
-2. Start PostgreSQL on port 5433 using either option below.
+2. Start a private PostgreSQL instance on port 5433, as shown below.
 3. Apply migrations to both databases and start the API:
 
 ```powershell
@@ -89,9 +89,7 @@ npm run dev:api
 
 Check http://localhost:5000/api/v1/health.
 
-**Option A, Docker:** `npm run db:up` creates the `ieltiva` database. Then run `docker compose exec postgres createdb -U ieltiva ieltiva_test`.
-
-**Option B, a private instance using the installed PostgreSQL 18:** this leaves any existing service unchanged. Put the password alone in a temporary file, then delete the file afterwards:
+**Private instance using the installed PostgreSQL 18:** this leaves any existing service unchanged. Put the password alone in a temporary file, then delete the file afterwards:
 
 ```powershell
 $pg = "C:\Program Files\PostgreSQL\18\bin"

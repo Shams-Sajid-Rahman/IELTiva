@@ -143,7 +143,6 @@ IELTiva/
 │           ├── domain.ts             # UserRole, LearningModule, IELTSExamType
 │           ├── health.ts
 │           └── scoring/              # Not yet built
-├── docker-compose.yml                # PostgreSQL on port 5433
 ├── .env.example
 ├── package.json
 ├── README.md
@@ -468,7 +467,7 @@ Stripe isn't planned for launch, because secondary sources say it doesn't onboar
 | Component | Proposed host |
 | --- | --- |
 | Web | Vercel |
-| API and worker | Containers on Railway, Render or a VPS |
+| API and worker | Node.js services on Railway, Render or a VPS |
 | PostgreSQL | Managed, with daily backups and restore tests |
 | Redis | Managed, with no-eviction policy as BullMQ requires |
 | Storage | Cloudflare R2 |
