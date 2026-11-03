@@ -16,13 +16,246 @@
     "menu": "Open menu",
     "menuTitle": "Menu",
     "home": "Home",
-    "designSystem": "Design system"
+    "designSystem": "Design system",
+    "how": "How it works",
+    "modules": "IELTS modules",
+    "pricing": "Pricing",
+    "faq": "Questions"
   },
   "home": {
-    "eyebrow": "Foundation preview",
+    "eyebrow": "Prepare Smarter. Achieve Higher.",
     "title": "IELTS preparation that shows you what to do next",
-    "body": "This is the IELTiva design foundation. The public website and student dashboard come in the next phase.",
-    "cta": "View the design system"
+    "body": "Structured courses, a study plan you control and honest progress tracking for IELTS Academic and General Training. Timed practice and AI writing feedback are on the way.",
+    "cta": "Create your free account",
+    "ctaSecondary": "See how it works",
+    "point1": "Academic and General Training",
+    "point2": "All four skills",
+    "point3": "Prepaid, with no subscription",
+    "calculator": {
+      "title": "How your overall band works",
+      "subtitle": "Move the sliders to see the result.",
+      "listening": "Listening",
+      "reading": "Reading",
+      "writing": "Writing",
+      "speaking": "Speaking",
+      "result": "Overall band {band}",
+      "user": "Skill level: {name}",
+      "between": "Skill level: between {lower} and {upper}",
+      "note": "Example values. This applies the published rule, the mean of four skills to the nearest half band, to the numbers you choose. It isn't a prediction or an IELTiva score.",
+      "users": {
+        "0": "Did not attempt the test",
+        "1": "Non-user",
+        "2": "Intermittent",
+        "3": "Extremely limited",
+        "4": "Limited",
+        "5": "Modest",
+        "6": "Competent",
+        "7": "Good",
+        "8": "Very good",
+        "9": "Expert"
+      }
+    },
+    "how": {
+      "eyebrow": "How it works",
+      "title": "A clear path from today to test day",
+      "step1": {
+        "title": "Tell us your goal",
+        "body": "Choose Academic or General Training, then add your target band, exam date and how much time you have each week."
+      },
+      "step2": {
+        "title": "Learn one skill at a time",
+        "body": "Work through courses for Listening, Reading, Writing and Speaking. Your place is saved on every device."
+      },
+      "step3": {
+        "title": "See what's next",
+        "body": "Your dashboard shows your progress by skill, your study streak and the next task in your plan, so you never have to guess."
+      }
+    },
+    "demos": {
+      "eyebrow": "Try it",
+      "title": "See how it feels before you sign up",
+      "intro": "These are small working samples of the product. Each one says whether it's ready today or still being built.",
+      "available": "Available now",
+      "inDevelopment": "In development",
+      "sampleNote": "Sample content for illustration, not real student data.",
+      "courses": {
+        "tab": "Courses",
+        "title": "Courses that remember your place",
+        "body": "Enroll, work through lessons, and watch your real progress grow as you complete them.",
+        "row1": "Listening for detail",
+        "row2": "Reading strategies",
+        "row3": "Writing Task 2 essentials"
+      },
+      "planner": {
+        "tab": "Study planner",
+        "title": "A plan you control",
+        "body": "Add your own study tasks, set dates and tick them off. Your dashboard reminds you what's due.",
+        "task1": "Review common Listening mistakes",
+        "task2": "Skim one Reading passage",
+        "task3": "Plan a Task 2 essay outline"
+      },
+      "practice": {
+        "tab": "Timed practice",
+        "title": "Practice that feels like the real test",
+        "body": "Timed Listening and Reading with clear question navigation. This is the next major feature we're building.",
+        "section": "Reading, section 1",
+        "hint": "Choose a question to jump to it.",
+        "question": "Go to question {number}",
+        "flag": "Flag questions to come back to them."
+      },
+      "writing": {
+        "tab": "Writing feedback",
+        "title": "Writing feedback, criterion by criterion",
+        "body": "Comments on all four official criteria. Band estimates stay hidden until they've been validated against human-marked samples.",
+        "sample": "Many cities have invested in public transport. However, some people still prefer driving because it is more convenient.",
+        "criteria": {
+          "task": "Task response",
+          "coherence": "Coherence",
+          "lexical": "Vocabulary",
+          "grammar": "Grammar"
+        },
+        "feedback": {
+          "task": "You state a contrast clearly. Next, say which side you support so the reader knows your position.",
+          "coherence": "'However' links these sentences well. Try adding a reason or example before you move on to a new idea.",
+          "lexical": "'Convenient' is accurate but common. Could a more precise word show exactly what drivers value?",
+          "grammar": "Both sentences are accurate. Try joining them with 'although' to show a more complex structure."
+        }
+      }
+    },
+    "modules": {
+      "eyebrow": "IELTS modules",
+      "title": "All four skills, built around the real test",
+      "intro": "Know exactly what you're preparing for. These are the official test formats.",
+      "labels": {
+        "time": "Time",
+        "structure": "Structure",
+        "detail": "Worth knowing"
+      },
+      "listening": {
+        "name": "Listening",
+        "headline": "Catch it the first time",
+        "body": "You hear each recording once, so preparation focuses on predicting answers and following speakers as they talk.",
+        "time": "About 30 minutes",
+        "structure": "4 parts",
+        "detail": "40 questions",
+        "structureLabel": "Four equal parts of 10 questions each"
+      },
+      "reading": {
+        "name": "Reading",
+        "headline": "Find answers without reading every word",
+        "body": "Long passages and limited time make skimming, scanning and time management the skills that matter most.",
+        "time": "60 minutes",
+        "structure": "3 sections",
+        "detail": "40 questions",
+        "structureLabel": "Three reading sections"
+      },
+      "writing": {
+        "name": "Writing",
+        "headline": "Two tasks, one clear plan",
+        "body": "Task 2 counts twice as much as Task 1, so how you divide your hour can make a real difference.",
+        "time": "60 minutes",
+        "structure": "2 tasks",
+        "detail": "150 and 250 words minimum",
+        "structureLabel": "Task 1 takes about 20 minutes and Task 2 about 40 minutes"
+      },
+      "speaking": {
+        "name": "Speaking",
+        "headline": "Keep talking with confidence",
+        "body": "A real conversation in three parts, from familiar topics to a discussion of wider ideas.",
+        "time": "11 to 14 minutes",
+        "structure": "3 parts",
+        "detail": "1 minute to prepare in Part 2",
+        "structureLabel": "Part 1 is 4 to 5 minutes, Part 2 is 3 to 4 minutes, and Part 3 is 4 to 5 minutes"
+      }
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Pay for what you need, with no subscription",
+      "intro": "Start free. Prepaid packages arrive when timed practice and writing feedback launch, and nothing renews automatically.",
+      "priceLater": "Price announced at launch",
+      "note": "Package prices haven't been set yet. We'll set them from real running costs and publish them before anything goes on sale.",
+      "free": {
+        "badge": "Available now",
+        "title": "Free account",
+        "body": "Everything you need to start preparing today.",
+        "item1": "Non-premium courses and lessons",
+        "item2": "Your own study planner",
+        "item3": "Progress tracking and study streaks"
+      },
+      "pack": {
+        "title": "Assessment pack",
+        "body": "A set number of writing assessments to use when you're ready.",
+        "include1": "Criterion-by-criterion feedback",
+        "include2": "Use at your own pace"
+      },
+      "pass": {
+        "title": "Practice pass",
+        "body": "Time-limited access to premium practice and mock tests.",
+        "include1": "Premium practice and mocks",
+        "include2": "No automatic renewal"
+      },
+      "bundle": {
+        "title": "Bundle",
+        "body": "A practice pass together with assessment credits.",
+        "include1": "Practice and feedback together",
+        "include2": "One prepaid purchase"
+      }
+    },
+    "trust": {
+      "eyebrow": "What you can count on",
+      "title": "Built to be honest about your preparation",
+      "independent": {
+        "title": "Independent",
+        "body": "IELTiva isn't affiliated with or endorsed by the IELTS partners, and we'll never suggest otherwise."
+      },
+      "validated": {
+        "title": "No unproven band scores",
+        "body": "AI band estimates stay hidden until they've been checked against samples marked by qualified humans."
+      },
+      "private": {
+        "title": "Your work stays private",
+        "body": "Your account is protected, and recordings and documents will be kept in private storage."
+      },
+      "original": {
+        "title": "Original content",
+        "body": "We don't copy IELTS test materials. Lessons and practice are written for IELTiva or used with permission."
+      },
+      "prepaid": {
+        "title": "No surprise charges",
+        "body": "Packages are prepaid and don't renew automatically. You choose when to buy again."
+      },
+      "honest": {
+        "title": "Real progress only",
+        "body": "Your dashboard shows what you've actually done. If there's no data yet, it says so instead of guessing."
+      }
+    },
+    "faq": {
+      "title": "Questions you may have",
+      "q1": {
+        "q": "Is IELTiva an official IELTS product?",
+        "a": "No. IELTiva is an independent preparation platform. It isn't affiliated with or endorsed by the IELTS partners."
+      },
+      "q2": {
+        "q": "What can I use today?",
+        "a": "You can create an account, follow published courses, plan your study and track your progress. Timed practice, writing feedback and mock tests are still being built."
+      },
+      "q3": {
+        "q": "Will IELTiva predict my band score?",
+        "a": "Not yet. Band estimates will only appear once they've been validated against human-marked samples. Until then, feedback focuses on what you can improve."
+      },
+      "q4": {
+        "q": "Does it cover Academic and General Training?",
+        "a": "Yes. Choose your test type in your settings, and courses can be filtered to match it."
+      },
+      "q5": {
+        "q": "How much will it cost?",
+        "a": "Creating an account is free. Prices for prepaid packages will be published before they go on sale, and there's no subscription."
+      }
+    },
+    "final": {
+      "title": "Your next step is one small task",
+      "body": "Create a free account, set your goal, and start with the skill that matters most to you."
+    }
   },
   "errors": {
     "notFoundTitle": "We couldn't find that page",
@@ -58,8 +291,8 @@
     "hidePassword": "Hide password",
     "genericError": "Something went wrong. Please try again.",
     "panelTitle": "Prepare smarter. Achieve higher.",
-    "panelPoint1": "Practise Listening and Reading in realistic timed conditions.",
-    "panelPoint2": "Get detailed feedback on your writing, criterion by criterion.",
+    "panelPoint1": "Follow structured IELTS courses and track what you've finished.",
+    "panelPoint2": "Plan your study around your own exam date and goals.",
     "panelPoint3": "Pick up where you left off, on any device.",
     "loginTitle": "Welcome back",
     "loginBody": "Sign in to continue your IELTS preparation.",
@@ -637,6 +870,279 @@
     "save": "Save",
     "changes_are_validated_and_recorded_in_the_audit_log": "Changes are validated and recorded in the audit log.",
     "only_a_super_administrator_can_change_these": "Only a super administrator can change these.",
-    "no_settings_found": "No settings found"
+    "no_settings_found": "No settings found",
+    "quick_navigation": "Quick navigation",
+    "activity_in_the_last_7_days": "Activity in the last 7 days",
+    "day_active": "{day}: active",
+    "day_inactive": "{day}: no activity",
+    "daily_goal": "Daily goal",
+    "daily_goal_progress": "{minutes} of {goal} minutes today",
+    "minutes_of_goal": "{minutes} of {goal} min",
+    "goal_reached_today": "Goal reached today",
+    "logged_when_you_complete_a_lesson": "Logged when you complete a lesson",
+    "set_a_daily_goal": "Set a daily goal",
+    "progress_by_skill": "Progress by skill",
+    "progress_by_skill_note": "Lessons completed in your courses. This shows coverage, not a test result.",
+    "completed_lessons": "{completed} of {total} lessons",
+    "find_a_course": "Find a {skill} course",
+    "no_course_yet": "No course yet",
+    "progress_in_skill": "Progress in {skill}",
+    "days_to_go": "{count, plural, one {# day} other {# days}} to go",
+    "resume_course": "Resume {course}",
+    "exam_history": "Exam history",
+    "no_exams_yet": "No exams yet",
+    "exam_history_note": "Your practice tests and mock exams will appear here once they launch.",
+    "preview_the_exam_screens": "Preview the exam screens",
+    "exam_preview_note": "Try the interface with original sample content. Answers aren't saved or marked.",
+    "skill_preview": "{skill} preview",
+    "date_range": "Date range",
+    "published_of_total": "{published} of {total} published",
+    "published_share": "Share of {label} published",
+    "content_overview": "Content overview",
+    "assessments_summary_note": "Assessment summaries will appear here once writing assessment launches. There's no data to show yet.",
+    "payments_summary_note": "Transaction summaries will appear here once prepaid packages launch. There's no data to show yet.",
+    "newest_first": "Newest first",
+    "oldest_first": "Oldest first",
+    "email_a_to_z": "Email A to Z",
+    "recent_sign_in": "Recent sign-in",
+    "achievements": "Achievements",
+    "achievement_earned": "Earned",
+    "achievement_first_course": "First course",
+    "achievement_first_course_hint": "Enroll in a course",
+    "achievement_first_lesson": "First lesson",
+    "achievement_first_lesson_hint": "Complete a lesson",
+    "achievement_ten_lessons": "Ten lessons",
+    "achievement_ten_lessons_hint": "Complete 10 lessons",
+    "achievement_five_hours": "Five study hours",
+    "achievement_five_hours_hint": "Log 5 hours of study",
+    "achievement_week_streak": "Seven-day streak",
+    "achievement_week_streak_hint": "Study 7 days in a row"
+  },
+  "footer": {
+    "tagline": "Prepare Smarter. Achieve Higher.",
+    "product": "Product",
+    "account": "Account",
+    "forgotPassword": "Forgot password",
+    "copyright": "© {year} IELTiva. All rights reserved."
+  },
+  "exam": {
+    "previewNotice": "Interface preview with original sample content. Your answers aren't saved or marked.",
+    "timeLeft": "Time left",
+    "exit": "Exit",
+    "exitTitle": "Leave this preview?",
+    "exitBody": "Your answers in this preview will be lost.",
+    "finish": "Finish",
+    "finishTitle": "Finish this preview?",
+    "finishUnanswered": "{count, plural, one {# question is} other {# questions are}} still unanswered. Nothing is saved or marked in this preview.",
+    "finishAllAnswered": "Nothing is saved or marked in this preview.",
+    "answeredSummary": "You answered {answered} of {total} questions.",
+    "doneTitle": "Preview finished",
+    "doneBody": "Nothing was sent or marked, and no score was produced. Real practice results will appear here once the practice engine launches.",
+    "backToPractice": "Back to practice",
+    "tryAgain": "Start again",
+    "questions": "Questions",
+    "previous": "Previous question",
+    "next": "Next question",
+    "answered": "answered",
+    "notAnswered": "not answered",
+    "flagged": "flagged",
+    "questionState": "Question {number}, {state}",
+    "flagQuestion": "Flag question {number}",
+    "listening": {
+      "title": "Listening preview",
+      "partTitle": "Part 1: Questions 1 to 5",
+      "instructions": "Complete the booking form. Write one word or a number for each answer.",
+      "player": "Audio player",
+      "recording": "Sample recording",
+      "play": "Play recording",
+      "pause": "Pause recording",
+      "played": "Amount played",
+      "volume": "Volume",
+      "playerNote": "This plays a short tone so you can try the controls. In the real test, you hear each recording once.",
+      "questions": [
+        {
+          "id": 1,
+          "prompt": "Name of the sports centre:"
+        },
+        {
+          "id": 2,
+          "prompt": "Day of the booking:"
+        },
+        {
+          "id": 3,
+          "prompt": "Number of people attending:"
+        },
+        {
+          "id": 4,
+          "prompt": "Which room does the caller choose?",
+          "options": [
+            "The main hall",
+            "The small studio",
+            "The outdoor court"
+          ]
+        },
+        {
+          "id": 5,
+          "prompt": "What will the caller bring?",
+          "options": [
+            "Their own equipment",
+            "A printed receipt",
+            "A membership card"
+          ]
+        }
+      ]
+    },
+    "reading": {
+      "title": "Reading preview",
+      "viewLabel": "Choose what to show",
+      "passage": "Passage",
+      "questions": [
+        {
+          "id": 1,
+          "prompt": "Roofs in cities were once used mainly for gardens.",
+          "options": [
+            "True",
+            "False",
+            "Not given"
+          ]
+        },
+        {
+          "id": 2,
+          "prompt": "Plants on a roof can reduce the need for cooling.",
+          "options": [
+            "True",
+            "False",
+            "Not given"
+          ]
+        },
+        {
+          "id": 3,
+          "prompt": "Soil on green roofs holds rainwater for several days.",
+          "options": [
+            "True",
+            "False",
+            "Not given"
+          ]
+        },
+        {
+          "id": 4,
+          "prompt": "What can make a repair to a green roof difficult?",
+          "options": [
+            "The garden may have to be lifted",
+            "Plants grow back too quickly",
+            "Rainwater damages the soil"
+          ]
+        },
+        {
+          "id": 5,
+          "prompt": "Critics say that savings depend on the local:"
+        }
+      ],
+      "instructions": "Answer the questions using information from the passage.",
+      "passageTitle": "Gardens above the city",
+      "paragraphs": [
+        "In many crowded cities, the flat roofs of offices and apartment blocks have long been empty spaces, used for little more than water tanks and air-conditioning units. Over the past two decades, however, planners have begun to see them differently. A growing number of these roofs now hold soil, plants and sometimes small vegetable plots.",
+        "The attraction is partly practical. Plants absorb a large share of the sunlight that would otherwise heat a building, so the rooms below need less cooling in summer. Soil also holds rainwater for several hours, which reduces the pressure on city drains during heavy storms.",
+        "Installing a green roof is not simple. The structure must be strong enough to carry wet soil, and waterproofing has to be replaced if it fails, which can mean lifting the whole garden. For these reasons, the cost is usually higher than for a conventional roof, at least at first.",
+        "Supporters argue that the expense is recovered over time, since a protected roof surface tends to last longer. Critics reply that the savings depend heavily on local climate. In cooler regions, they point out, a building may benefit far less."
+      ]
+    },
+    "writing": {
+      "title": "Writing preview",
+      "promptLabel": "Task instructions",
+      "answerLabel": "Your answer for {task}",
+      "placeholder": "Start writing here.",
+      "wordCount": "{words} of {minimum} words",
+      "paragraphCount": "{count, plural, one {# paragraph} other {# paragraphs}}",
+      "minimumReached": "Minimum reached",
+      "wordsToGo": "{count, plural, one {# more word} other {# more words}} to the minimum",
+      "towardsMinimum": "Progress towards the minimum word count",
+      "finishBlank": "{count, plural, one {# task is} other {# tasks are}} still blank. Nothing is saved or marked in this preview.",
+      "summary": "You wrote {words} words in total.",
+      "task1": {
+        "name": "Task 1",
+        "guide": "Spend about 20 minutes on this task. Write at least 150 words.",
+        "prompt": "The table shows how people travelled to work in a fictional city in two different years. Summarise the information by selecting and reporting the main features, and make comparisons where relevant.",
+        "caption": "Share of commuters, fictional data",
+        "head": [
+          "Transport",
+          "2005",
+          "2025"
+        ],
+        "rows": [
+          [
+            "Car",
+            "58%",
+            "41%"
+          ],
+          [
+            "Bus",
+            "27%",
+            "31%"
+          ],
+          [
+            "Bicycle",
+            "6%",
+            "17%"
+          ],
+          [
+            "Walking",
+            "9%",
+            "11%"
+          ]
+        ]
+      },
+      "task2": {
+        "name": "Task 2",
+        "guide": "Spend about 40 minutes on this task. Write at least 250 words.",
+        "prompt": "Some people believe that every city should make its centre free of private cars. To what extent do you agree or disagree? Give reasons for your answer and include relevant examples."
+      }
+    },
+    "speaking": {
+      "title": "Speaking preview",
+      "recorder": "Recording controls",
+      "micOff": "Your microphone stays off in this preview, and no audio is recorded.",
+      "ready": "Ready when you are",
+      "preparing": "Prepare your answer",
+      "speakNow": "Speak now",
+      "finishedPart": "Part finished",
+      "startPreparing": "Start preparing",
+      "startSpeaking": "Start speaking",
+      "stop": "Stop",
+      "again": "Try this part again",
+      "finishNote": "Nothing is recorded, saved or marked in this preview.",
+      "summary": "You've seen all the parts of the Speaking flow.",
+      "part1": {
+        "name": "Part 1",
+        "time": "4 to 5 minutes",
+        "heading": "Everyday topics",
+        "points": [
+          "What do you usually do at the weekend?",
+          "Do you prefer spending time indoors or outdoors? Why?",
+          "Has the way you spend your free time changed since you were younger?"
+        ]
+      },
+      "part2": {
+        "name": "Part 2",
+        "time": "1 minute to prepare, up to 2 minutes to speak",
+        "heading": "Describe a place you enjoy visiting",
+        "points": [
+          "Where it is",
+          "How often you go there",
+          "What you do there",
+          "And explain why you enjoy visiting it"
+        ]
+      },
+      "part3": {
+        "name": "Part 3",
+        "time": "4 to 5 minutes",
+        "heading": "Discussion",
+        "points": [
+          "Why do some public places become more popular than others?",
+          "How might cities change their public spaces in the future?",
+          "Should visitors pay to help protect popular places?"
+        ]
+      }
+    }
   }
 }

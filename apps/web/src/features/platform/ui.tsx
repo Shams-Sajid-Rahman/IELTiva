@@ -21,7 +21,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
   return (
     <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-bold break-words sm:text-3xl">{title}</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight break-words sm:text-[2rem]">{title}</h1>
         {description && <p className="text-muted-foreground mt-1 max-w-2xl">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
@@ -108,7 +108,7 @@ export function SelectBox({ label, options, hideLabel, error, className, id, ...
       <select
         id={selectId}
         aria-invalid={Boolean(error)}
-        className="border-input bg-card text-foreground focus-visible:ring-ring/50 h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+        className="border-input bg-card text-foreground focus-visible:ring-ring/50 h-9 w-full rounded-md pointer-coarse:h-11 border px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
         {...props}
       >
         {options.map((option) => (
@@ -250,12 +250,17 @@ export function FormDialog({
 }
 
 /** Tables scroll inside their own area on narrow screens, so the page itself never scrolls sideways. */
-export function TableFrame({ label, children }: { label: string; children: ReactNode }) {
+export function TableFrame({ label, cards, children }: { label: string; cards?: boolean; children: ReactNode }) {
   return (
-    <div role="region" aria-label={label} tabIndex={0} className="bg-card overflow-x-auto rounded-xl border">
-      <table className="w-full min-w-[40rem] text-left text-sm">{children}</table>
+    <div role="region" aria-label={label} tabIndex={0} className="bg-card shadow-soft overflow-x-auto rounded-xl border">
+      <table role={cards ? "table" : undefined} className={cn("w-full text-left text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-muted/60 [&_tbody_tr:last-child_td]:border-b-0", cards ? "table-cards sm:min-w-[40rem]" : "min-w-[40rem]")}>{children}</table>
     </div>
   );
+}
+
+/** A table cell that keeps its label when the table turns into cards on small screens. */
+export function CardCell({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+  return <td role="cell" data-label={label} className={cn(tdClass, className)}>{children}</td>;
 }
 
 export const thClass = "text-muted-foreground border-b px-4 py-3 text-xs font-semibold tracking-wide uppercase";

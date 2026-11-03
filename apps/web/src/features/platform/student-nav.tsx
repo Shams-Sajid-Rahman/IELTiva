@@ -21,7 +21,7 @@ export function StudentLayout({ children }: { children: ReactNode }) {
   ];
   return (
     <RequireAuth>
-      <DashboardShell items={items} rootHref="/dashboard" rootLabel={t("dashboard")} navLabel={t("student_navigation")}>
+      <DashboardShell items={items} quickItems={items.slice(0, 4)} rootHref="/dashboard" rootLabel={t("dashboard")} navLabel={t("student_navigation")}>
         {children}
       </DashboardShell>
     </RequireAuth>

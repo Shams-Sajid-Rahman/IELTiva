@@ -2,13 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { changeEmailSchema, changePasswordSchema, plannerTaskSchema, updateProfileSchema } from "@ieltiva/shared";
-import { Bell, Camera, CalendarCheck, CheckCheck, History, Laptop, Trash2 } from "lucide-react";
+import { Award, Bell, BookCheck, Camera, CalendarCheck, CheckCheck, Clock, Flame, GraduationCap, History, Laptop, Lock, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
+import { StatCard } from "@/components/feedback/stat-card";
+import { AnimatedNumber } from "@/components/motion/animated-number";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth/auth-provider";
 import { api } from "@/lib/api-client";
-import { formatDate, formatDateTime, formatPlainDate } from "../format";
+import { cn } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMinutes, formatPlainDate } from "../format";
 import { applyFieldErrors, useApiAction, useApiPage, useApiQuery } from "../hooks";
 import { useLabels } from "../labels";
 import { ConfirmButton, Empty, FormDialog, InputField, PageHeader, Pagination, QueryBoundary, SelectBox } from "../ui";
@@ -47,6 +50,51 @@ type Profile = {
   notificationPrefs: { learning: boolean; announcements: boolean };
 };
 
+type LearningStats = { stats: { completedActivities: number; loggedMinutes: number; streakDays: number; enrolledCourses: number } };
+
+/** Milestones worked out from the student's real activity. They recognise effort and say nothing about ability or bands. */
+function Achievements() {
+  const t = useTranslations("app");
+  const query = useApiQuery<LearningStats>("/dashboard/student");
+  if (!query.data) return null;
+  const { completedActivities, loggedMinutes, streakDays, enrolledCourses } = query.data.stats;
+  const items = [
+    { key: "first_course", icon: GraduationCap, earned: enrolledCourses >= 1 },
+    { key: "first_lesson", icon: BookCheck, earned: completedActivities >= 1 },
+    { key: "ten_lessons", icon: Award, earned: completedActivities >= 10 },
+    { key: "five_hours", icon: Clock, earned: loggedMinutes >= 300 },
+    { key: "week_streak", icon: Flame, earned: streakDays >= 7 },
+  ];
+  return (
+    <section aria-labelledby="achievements-heading" className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label={t("completed_activities")} value={<AnimatedNumber value={completedActivities} />} icon={<BookCheck aria-hidden />} />
+        <StatCard label={t("practice_time")} value={<AnimatedNumber value={loggedMinutes} format={formatMinutes} />} icon={<Clock aria-hidden />} />
+        <StatCard label={t("current_streak")} value={<AnimatedNumber value={streakDays} format={(value) => (value === 1 ? t("1_day") : t("count_days", { count: value }))} />} icon={<Flame aria-hidden />} />
+      </div>
+      <Card className="shadow-soft">
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle id="achievements-heading" className="font-display text-lg">{t("achievements")}</CardTitle>
+          <Button asChild variant="ghost" size="sm"><Link href="/history"><History aria-hidden /> {t("learning_history")}</Link></Button>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {items.map(({ key, icon: Icon, earned }) => (
+              <li key={key} className={cn("rounded-xl border p-4", earned ? "bg-accent/50" : "border-dashed")}>
+                <span className={cn("flex size-10 items-center justify-center rounded-lg", earned ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                  {earned ? <Icon className="size-5" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+                </span>
+                <p className="mt-3 text-sm font-semibold">{t(`achievement_${key}`)}</p>
+                <p className="text-muted-foreground mt-0.5 text-xs">{earned ? t("achievement_earned") : t(`achievement_${key}_hint`)}</p>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
 export function ProfilePage() {
   const t = useTranslations("app");
   const labels = useLabels();
@@ -69,10 +117,12 @@ export function ProfilePage() {
       <PageHeader title={t("my_profile")} description={t("your_personal_details_and_ielts_preparation")} actions={<Button asChild variant="outline"><Link href="/settings">{t("settings")}</Link></Button>} />
       <QueryBoundary query={query}>
         {(profile) => (
+          <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="shadow-soft">
-              <CardContent className="flex flex-col items-center gap-3 text-center">
-                <Avatar className="size-24">
+            <Card className="shadow-soft gap-0 overflow-hidden pt-0">
+              <div aria-hidden className="bg-brand-surface h-24" />
+              <CardContent className="-mt-12 flex flex-col items-center gap-3 text-center">
+                <Avatar className="ring-card size-24 ring-4">
                   {profile.hasPhoto && <AvatarImage src={`${api.url("/profile/photo")}?v=${profile.photoVersion}`} alt={t("your_profile_photo")} />}
                   <AvatarFallback className="text-2xl">{`${profile.firstName[0] ?? ""}${profile.lastName[0] ?? ""}`.toUpperCase() || "U"}</AvatarFallback>
                 </Avatar>
@@ -141,6 +191,8 @@ export function ProfilePage() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+          <Achievements />
           </div>
         )}
       </QueryBoundary>
@@ -236,14 +288,14 @@ function NotificationsTab({ profile }: { profile: Profile }) {
   return (
     <div className="space-y-5">
       <p className="text-muted-foreground text-sm">{t("these_control_messages_inside_ieltiva_email_and_push_no")}</p>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 rounded-xl border p-4">
         <div>
           <Label htmlFor="pref-learning">{t("learning_updates")}</Label>
           <p className="text-muted-foreground text-sm">{t("enrollments_new_courses_and_study_reminders")}</p>
         </div>
         <Switch id="pref-learning" checked={prefs.learning} disabled={save.isPending} onCheckedChange={(learning) => save.mutate({ ...prefs, learning })} />
       </div>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 rounded-xl border p-4">
         <div>
           <Label htmlFor="pref-announcements">{t("announcements")}</Label>
           <p className="text-muted-foreground text-sm">{t("news_from_the_ieltiva_team")}</p>
@@ -373,7 +425,7 @@ export function SettingsPage() {
       <QueryBoundary query={query}>
         {(profile) => (
           <Tabs defaultValue="preferences">
-            <TabsList>
+            <TabsList className="w-full sm:w-fit">
               <TabsTrigger value="preferences">{t("preferences")}</TabsTrigger>
               <TabsTrigger value="notifications">{t("notifications")}</TabsTrigger>
               <TabsTrigger value="security">{t("security")}</TabsTrigger>

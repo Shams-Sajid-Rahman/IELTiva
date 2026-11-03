@@ -1,16 +1,22 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, CircleDot, Clock, ExternalLink, GraduationCap, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, CircleDot, Clock, ExternalLink, GraduationCap, Headphones, Lock, Mic, MonitorPlay, PenLine } from "lucide-react";
+import { motion, useReducedMotion, useScroll } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ProgressRing } from "@/components/feedback/progress-ring";
+import { AnimatedNumber } from "@/components/motion/animated-number";
+import { Stagger, StaggerItem } from "@/components/motion/reveal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { formatDate, formatMinutes } from "../format";
 import { useApiAction, useApiPage, useApiQuery, useDebounced } from "../hooks";
 import { useLabels } from "../labels";
@@ -42,17 +48,30 @@ type CourseDetail = CourseListItem & {
   sections: { id: string; title: string; description: string | null; resources: { id: string; title: string; type: string; durationMinutes: number | null; progress: string }[] }[];
 };
 
-function Thumbnail({ url }: { url: string | null }) {
+const SKILL_ICONS: Record<string, typeof BookOpen> = { LISTENING: Headphones, READING: BookOpen, WRITING: PenLine, SPEAKING: Mic };
+
+function Thumbnail({ url, skill }: { url: string | null; skill?: string | null }) {
   if (!url) {
+    const Icon = (skill && SKILL_ICONS[skill]) || GraduationCap;
     return (
-      <div aria-hidden className="bg-accent text-accent-foreground flex h-32 items-center justify-center rounded-t-xl">
-        <BookOpen className="size-8" />
+      <div aria-hidden className="bg-brand-surface relative flex h-32 items-end overflow-hidden rounded-t-xl p-4">
+        <div className="brand-grid absolute inset-0" />
+        <Icon className="text-brand-sky relative size-8" />
       </div>
     );
   }
   // External images set by content managers. Next's image optimiser would need each host allowed in advance.
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={url} alt="" referrerPolicy="no-referrer" className="h-32 w-full rounded-t-xl object-cover" />;
+}
+
+function CourseGridSkeleton() {
+  const t = useTranslations("app");
+  return (
+    <div role="status" aria-label={t("loading")} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-72 rounded-xl" />)}
+    </div>
+  );
 }
 
 export function CourseCatalog() {
@@ -83,20 +102,20 @@ export function CourseCatalog() {
         <SelectBox hideLabel label={t("difficulty")} value={difficulty} onChange={(e) => reset(setDifficulty)(e.target.value)} options={[{ value: "", label: t("all_levels") }, ...["BEGINNER", "INTERMEDIATE", "ADVANCED"].map((value) => ({ value, label: labels.difficulty(value) }))]} />
         <SelectBox hideLabel label={t("sort_by")} value={sort} onChange={(e) => reset(setSort)(e.target.value)} options={[{ value: "-publishedAt", label: t("newest") }, { value: "title", label: t("title_a_to_z") }]} />
       </div>
-      <QueryBoundary query={query}>
+      <QueryBoundary query={query} loading={<CourseGridSkeleton />}>
         {({ items, meta }) =>
           items.length === 0 ? (
             <Empty title={t("no_courses_found")} description={t("try_changing_your_search_or_filters")} />
           ) : (
             <>
-              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {items.map((course) => (
                   <li key={course.id}>
-                    <Card className="shadow-soft h-full gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md">
-                      <Thumbnail url={course.thumbnailUrl} />
+                    <Card className="lift shadow-soft relative h-full gap-0 overflow-hidden py-0">
+                      <Thumbnail url={course.thumbnailUrl} skill={course.module.skill} />
                       <CardContent className="flex flex-1 flex-col gap-2 p-4">
                         <h2 className="font-display font-semibold break-words">
-                          <Link href={`/courses/${course.id}`} className="underline-offset-4 hover:underline">{course.title}</Link>
+                          <Link href={`/courses/${course.id}`} className="underline-offset-4 after:absolute after:inset-0 hover:underline">{course.title}</Link>
                         </h2>
                         <div className="flex flex-wrap gap-1.5">
                           <Badge variant="secondary">{course.module.name}</Badge>
@@ -140,23 +159,29 @@ export function CourseDetailView() {
         const continueId = course.enrollment?.lastResourceId ?? firstResource?.id;
         return (
           <>
-            <PageHeader
-              title={course.title}
-              description={course.description ?? undefined}
-              actions={
-                enrolled ? (
-                  continueId && (
-                    <Button asChild>
-                      <Link href={`/courses/${course.id}/resources/${continueId}`}>{t("continue_learning")} <ArrowRight aria-hidden /></Link>
-                    </Button>
-                  )
-                ) : course.locked ? (
-                  <Button disabled><Lock aria-hidden /> {t("premium_course")}</Button>
-                ) : course.status === "PUBLISHED" ? (
-                  <Button disabled={enroll.isPending} onClick={() => enroll.mutate()}>{t("enroll_now")}</Button>
-                ) : null
-              }
-            />
+            <header className="bg-brand-surface relative mb-6 overflow-hidden rounded-2xl p-6 sm:p-8">
+              <div aria-hidden className="brand-grid absolute inset-0" />
+              <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0">
+                  <p className="text-brand-sky text-sm font-semibold">{course.module.name}</p>
+                  <h1 className="font-display mt-1 text-2xl font-semibold tracking-tight break-words sm:text-4xl">{course.title}</h1>
+                  {course.description && <p className="text-on-brand-muted mt-2 max-w-2xl leading-relaxed">{course.description}</p>}
+                </div>
+                <div className="shrink-0">
+                  {enrolled ? (
+                    continueId && (
+                      <Button asChild variant="onBrand" size="lg">
+                        <Link href={`/courses/${course.id}/resources/${continueId}`}>{t("continue_learning")} <ArrowRight aria-hidden /></Link>
+                      </Button>
+                    )
+                  ) : course.locked ? (
+                    <Button disabled variant="onBrand" size="lg"><Lock aria-hidden /> {t("premium_course")}</Button>
+                  ) : course.status === "PUBLISHED" ? (
+                    <Button variant="onBrand" size="lg" disabled={enroll.isPending} onClick={() => enroll.mutate()}>{t("enroll_now")}</Button>
+                  ) : null}
+                </div>
+              </div>
+            </header>
             {course.locked && (
               <p className="bg-card mb-6 rounded-xl border p-4 text-sm">{t("this_course_needs_a_practice_pass_passes_aren_t_on_sale")}</p>
             )}
@@ -188,7 +213,7 @@ export function CourseDetailView() {
                           {section.resources.map((resource) => {
                             const Icon = progressIcon(resource.progress);
                             return (
-                              <li key={resource.id} className="flex items-center gap-3 py-2 text-sm">
+                              <li key={resource.id} className="hover:bg-muted/60 -mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm transition-colors">
                                 <Icon className={resource.progress === "COMPLETED" ? "text-success size-4 shrink-0" : "text-muted-foreground size-4 shrink-0"} aria-hidden />
                                 <span className="sr-only">{labels.status(resource.progress === "COMPLETED" ? "COMPLETED" : "")}</span>
                                 <div className="min-w-0 flex-1">
@@ -208,14 +233,18 @@ export function CourseDetailView() {
                   ))}
                 </section>
               </div>
-              <aside className="space-y-4">
+              <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-20 lg:self-start">
                 {enrolled && (
                   <Card className="shadow-soft">
                     <CardHeader><CardTitle className="font-display text-lg">{t("your_progress")}</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                      <Progress value={course.progress.percent} aria-label={t("course_progress")} />
-                      <p className="text-sm">{t("percent_complete_completed_of_total", { percent: course.progress.percent, completed: course.progress.completed, total: course.progress.total })}</p>
-                      <p className="text-muted-foreground text-xs">{t("enrolled_on_date", { date: formatDate(course.enrollment?.createdAt) })}</p>
+                    <CardContent className="flex items-center gap-4">
+                      <ProgressRing value={course.progress.percent} label={t("course_progress")} size={84}>
+                        <span className="font-display font-semibold"><AnimatedNumber value={course.progress.percent} format={(value) => `${value}%`} /></span>
+                      </ProgressRing>
+                      <div className="min-w-0">
+                        <p className="text-sm">{t("completed_lessons", { completed: course.progress.completed, total: course.progress.total })}</p>
+                        <p className="text-muted-foreground mt-1 text-xs">{t("enrolled_on_date", { date: formatDate(course.enrollment?.createdAt) })}</p>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -255,6 +284,52 @@ type ResourceView = {
   progress: string;
 };
 
+/** Lessons in this course, so a student can move around without going back. Uses the same data as the course page. */
+function LessonOutline({ courseId, resourceId }: { courseId: string; resourceId: string }) {
+  const t = useTranslations("app");
+  const course = useApiQuery<CourseDetail>(`/courses/${courseId}`);
+  if (!course.data) return null;
+  return (
+    <nav aria-label={t("course_content")} className="bg-card shadow-soft rounded-xl border p-4">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-sm font-semibold">{t("course_content")}</p>
+          <p className="text-muted-foreground text-xs">{t("completed_lessons", { completed: course.data.progress.completed, total: course.data.progress.total })}</p>
+        </div>
+      </div>
+      <Progress className="mt-3" value={course.data.progress.percent} aria-label={t("course_progress")} />
+      <div className="mt-3 max-h-[60vh] space-y-3 overflow-y-auto">
+        {course.data.sections.map((section) => (
+          <div key={section.id}>
+            <p className="text-muted-foreground px-2 text-xs font-semibold break-words">{section.title}</p>
+            <ul className="mt-1 space-y-0.5">
+              {section.resources.map((item) => {
+                const Icon = progressIcon(item.progress);
+                const current = item.id === resourceId;
+                return (
+                  <li key={item.id}>
+                    <Link href={`/courses/${courseId}/resources/${item.id}`} aria-current={current ? "page" : undefined} className={cn("flex items-start gap-2 rounded-lg px-2 py-2 text-sm transition-colors", current ? "bg-accent text-accent-foreground font-medium" : "hover:bg-muted")}>
+                      <Icon className={cn("mt-0.5 size-4 shrink-0", item.progress === "COMPLETED" && "text-success")} aria-hidden />
+                      <span className="min-w-0 break-words">{item.title}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function ReadingProgress() {
+  const { scrollYProgress } = useScroll();
+  const reduced = useReducedMotion();
+  if (reduced) return null;
+  return <motion.div aria-hidden className="bg-primary fixed inset-x-0 top-0 z-50 h-0.5 origin-left" style={{ scaleX: scrollYProgress }} />;
+}
+
 export function ResourceViewPage() {
   const t = useTranslations("app");
   const labels = useLabels();
@@ -281,14 +356,16 @@ export function ResourceViewPage() {
       {(resource) => {
         const done = resource.progress === "COMPLETED";
         return (
-          <article className="mx-auto max-w-3xl">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <ReadingProgress />
+          <article className="mx-auto w-full max-w-3xl min-w-0">
             <Button asChild variant="ghost" size="sm" className="mb-3">
               <Link href={`/courses/${courseId}`}><ArrowLeft aria-hidden /> {resource.course.title}</Link>
             </Button>
             <p className="text-muted-foreground text-sm">{resource.section.title} · {labels.resourceType(resource.type)}{resource.durationMinutes ? ` · ${formatMinutes(resource.durationMinutes)}` : ""}</p>
-            <h1 className="font-display mt-1 text-2xl font-bold break-words sm:text-3xl">{resource.title}</h1>
+            <h1 className="font-display mt-1 text-2xl font-semibold tracking-tight break-words sm:text-4xl">{resource.title}</h1>
             {/* Shown as plain text, so lesson content can never run as code in a student's browser. */}
-            {resource.body && <div className="mt-6 leading-relaxed break-words whitespace-pre-wrap">{resource.body}</div>}
+            {resource.body && <div className="mt-6 text-[1.0625rem] leading-[1.75] break-words whitespace-pre-wrap">{resource.body}</div>}
             {resource.externalUrl && (
               <Button asChild variant="outline" className="mt-6">
                 <a href={resource.externalUrl} target="_blank" rel="noopener noreferrer">
@@ -326,6 +403,8 @@ export function ResourceViewPage() {
               )}
             </div>
           </article>
+          <aside className="lg:sticky lg:top-20 lg:self-start"><LessonOutline courseId={courseId} resourceId={resourceId} /></aside>
+          </div>
         );
       }}
     </QueryBoundary>
@@ -363,19 +442,21 @@ export function MyLearning() {
             <Empty icon={<GraduationCap aria-hidden />} title={t("you_haven_t_enrolled_yet")} description={t("choose_a_course_to_begin")} action={<Button asChild><Link href="/courses">{t("browse_courses")}</Link></Button>} />
           ) : (
             <>
-              <ul className="space-y-3">
+              <ul className="grid gap-4 xl:grid-cols-2">
                 {items.map((row) => (
                   <li key={row.id}>
-                    <Card className="shadow-soft">
-                      <CardContent className="flex flex-col gap-4 md:flex-row md:items-center">
+                    <Card className="lift shadow-soft h-full">
+                      <CardContent className="flex h-full flex-col gap-4 sm:flex-row sm:items-center">
+                        <ProgressRing value={row.progress.percent} label={t("progress_in_course", { course: row.course.title })} size={72} stroke={7}>
+                          <span aria-hidden className="text-sm font-semibold tabular-nums">{row.progress.percent}%</span>
+                        </ProgressRing>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h2 className="font-display font-semibold break-words"><Link href={`/courses/${row.courseId}`} className="underline-offset-4 hover:underline">{row.course.title}</Link></h2>
                             <Badge variant="secondary">{labels.status(row.status)}</Badge>
                           </div>
                           <p className="text-muted-foreground text-sm">{row.course.module.name}</p>
-                          <Progress className="mt-3" value={row.progress.percent} aria-label={t("progress_in_course", { course: row.course.title })} />
-                          <p className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 text-xs">
+                          <p className="text-muted-foreground mt-2 flex flex-wrap gap-x-3 text-xs">
                             <span>{t("percent_complete_completed_of_total", { percent: row.progress.percent, completed: row.progress.completed, total: row.progress.total })}</span>
                             {row.lastAccessedAt && <span className="inline-flex items-center gap-1"><Clock className="size-3" aria-hidden /> {t("last_opened_date", { date: formatDate(row.lastAccessedAt) })}</span>}
                           </p>
@@ -406,12 +487,39 @@ export function MyLearning() {
 
 type PracticeModule = { id: string; name: string; description: string | null; skill: string | null; courseCount: number };
 
+const EXAM_PREVIEWS = [
+  { skill: "listening", value: "LISTENING", icon: Headphones },
+  { skill: "reading", value: "READING", icon: BookOpen },
+  { skill: "writing", value: "WRITING", icon: PenLine },
+  { skill: "speaking", value: "SPEAKING", icon: Mic },
+];
+
 export function PracticeOverview() {
   const t = useTranslations("app");
+  const labels = useLabels();
   const query = useApiPage<PracticeModule>("/modules", { pageSize: 50 });
   return (
     <>
       <PageHeader title={t("ielts_practice")} description={t("timed_practice_tests_are_coming_in_the_next_phase_for_n")} />
+      <section aria-labelledby="exam-previews" className="bg-card shadow-soft mb-8 rounded-2xl border p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <MonitorPlay className="text-primary mt-1 size-5 shrink-0" aria-hidden />
+          <div className="min-w-0">
+            <h2 id="exam-previews" className="font-display text-lg font-semibold">{t("preview_the_exam_screens")}</h2>
+            <p className="text-muted-foreground mt-1 text-sm">{t("exam_preview_note")}</p>
+          </div>
+        </div>
+        <Stagger className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {EXAM_PREVIEWS.map(({ skill, value, icon: Icon }) => (
+            <StaggerItem key={skill}>
+              <Link href={`/practice/preview/${skill}`} className="lift bg-background flex min-h-24 flex-col justify-between gap-3 rounded-xl border p-4 font-medium">
+                <Icon className="text-primary size-5" aria-hidden />
+                <span>{t("skill_preview", { skill: labels.skill(value) })}</span>
+              </Link>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </section>
       <QueryBoundary query={query}>
         {({ items }) =>
           items.length === 0 ? (
@@ -420,7 +528,7 @@ export function PracticeOverview() {
             <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((module) => (
                 <li key={module.id}>
-                  <Card className="shadow-soft h-full">
+                  <Card className="lift shadow-soft h-full">
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2">
                         <CardTitle className="font-display text-lg break-words">{module.name}</CardTitle>

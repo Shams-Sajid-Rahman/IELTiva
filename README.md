@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 3, core platform.** Student and admin dashboards, user and role management, courses, enrollment, progress, profiles and notifications are built. The IELTS practice engine, AI and payments aren't built yet, and there has been no independent security audit.
+> **Status: Phase 3, core platform, with the premium frontend upgrade.** The public site, student and admin dashboards, user and role management, courses, enrollment, progress, profiles and notifications are built. The exam screens are an interface preview only. The IELTS practice engine, AI and payments aren't built yet, and there has been no independent security audit.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 

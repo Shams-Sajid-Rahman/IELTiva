@@ -6,7 +6,7 @@ import { Client } from "pg";
 const shots = path.resolve(process.cwd(), "../../docs/screenshots/phase-3");
 const API = "http://localhost:5100/api/v1";
 const PASSWORD = "Str0ng-Pass-Word";
-const widths = [360, 390, 768, 1024, 1440];
+const widths = [360, 390, 480, 768, 1024, 1280, 1440, 1600];
 const run = Date.now();
 const adminEmail = `e2e-${run}-admin@example.com`;
 const studentEmail = `e2e-${run}-student@example.com`;

@@ -455,6 +455,7 @@ Checked on 2026-11-03. Re-check all sources before each release, and record the 
 | Speaking | 11 to 14 minutes. Part 1 is 4 to 5 minutes. Part 2 is 3 to 4 minutes including 1 minute's preparation. Part 3 is 4 to 5 minutes | [Cambridge](https://www.cambridgeenglish.org/exams-and-tests/ielts/test-format/) |
 | Writing and Speaking criteria | Four equally weighted criteria per skill | [IELTS scoring](https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail) |
 | Overall band | Mean of four, nearest half band. 6.25 becomes 6.5, 3.875 becomes 4.0, 6.125 becomes 6.0 | [IELTS scoring](https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail) |
+| Band scale | 9 Expert, 8 Very good, 7 Good, 6 Competent, 5 Modest, 4 Limited, 3 Extremely limited, 2 Intermittent, 1 Non-user, 0 Did not attempt the test. Checked 2026-11-04 | [IELTS scoring](https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail) |
 | Raw score conversion | Only average points are published, and they vary by test version | [IELTS scoring](https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail) |
 | Band descriptors | [Writing PDF, updated May 2023](https://ielts.org/cdn/Guides/ielts-writing-band-descriptors.pdf), [Speaking PDF](https://ielts.org/cdn/ielts-guides/ielts-speaking-band-descriptors.pdf) | IELTS |
 

@@ -15,7 +15,7 @@ import { api } from "@/lib/api-client";
 import { formatDate, formatDateTime, formatMinutes, fullName } from "../format";
 import { useApiAction, useApiPage, useApiQuery, useDebounced } from "../hooks";
 import { useLabels } from "../labels";
-import { ConfirmButton, Empty, FormDialog, InputField, PageHeader, Pagination, QueryBoundary, SearchField, SelectBox, StatusBadge, TableFrame, tdClass, thClass } from "../ui";
+import { CardCell, ConfirmButton, Empty, FormDialog, InputField, PageHeader, Pagination, QueryBoundary, SearchField, SelectBox, StatusBadge, TableFrame, thClass } from "../ui";
 
 type UserRow = { id: string; email: string; firstName: string; lastName: string; status: string; emailVerified: boolean; roles: string[]; createdAt: string; lastLoginAt: string | null };
 
@@ -51,6 +51,7 @@ export function UserList() {
         <SearchField label={t("search_by_name_or_email")} value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
         <SelectBox hideLabel label={t("filter_by_role")} value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} options={[{ value: "", label: t("all_roles") }, ...ROLES.map((value) => ({ value, label: labels.role(value) }))]} />
         <SelectBox hideLabel label={t("filter_by_status")} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: "", label: t("all_statuses") }, ...["ACTIVE", "SUSPENDED", "DELETION_PENDING"].map((value) => ({ value, label: labels.status(value) }))]} />
+        <SelectBox hideLabel className="sm:hidden" label={t("sort_by")} value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} options={[{ value: "-createdAt", label: t("newest_first") }, { value: "createdAt", label: t("oldest_first") }, { value: "email", label: t("email_a_to_z") }, { value: "-lastLoginAt", label: t("recent_sign_in") }]} />
       </div>
       <QueryBoundary query={query}>
         {({ items, meta }) =>
@@ -58,7 +59,7 @@ export function UserList() {
             <Empty title={t("no_users_found")} description={t("try_changing_your_search_or_filters")} />
           ) : (
             <>
-              <TableFrame label={t("users")}>
+              <TableFrame cards label={t("users")}>
                 <thead>
                   <tr>
                     <th scope="col" className={thClass}>{t("name")}</th>
@@ -73,19 +74,19 @@ export function UserList() {
                 </thead>
                 <tbody>
                   {items.map((user) => (
-                    <tr key={user.id}>
-                      <td className={tdClass}>{fullName(user) || "-"}</td>
-                      <td className={`${tdClass} break-all`}>{user.email}</td>
-                      <td className={tdClass}>
-                        <div className="flex flex-wrap gap-1">{user.roles.map((code) => <Badge key={code} variant="secondary">{labels.role(code)}</Badge>)}</div>
-                      </td>
-                      <td className={tdClass}><StatusBadge status={user.status} /></td>
-                      <td className={tdClass}>{user.emailVerified ? t("yes") : t("no")}</td>
-                      <td className={tdClass}>{formatDate(user.createdAt)}</td>
-                      <td className={tdClass}>{formatDate(user.lastLoginAt)}</td>
-                      <td className={tdClass}>
+                    <tr key={user.id} role="row">
+                      <CardCell label={t("name")}><span>{fullName(user) || "-"}</span></CardCell>
+                      <CardCell label={t("email")} className="break-all"><span>{user.email}</span></CardCell>
+                      <CardCell label={t("role")}>
+                        <div className="flex flex-wrap justify-end gap-1 sm:justify-start">{user.roles.map((code) => <Badge key={code} variant="secondary">{labels.role(code)}</Badge>)}</div>
+                      </CardCell>
+                      <CardCell label={t("status")}><StatusBadge status={user.status} /></CardCell>
+                      <CardCell label={t("verified")}><span>{user.emailVerified ? t("yes") : t("no")}</span></CardCell>
+                      <CardCell label={t("registered")}><span>{formatDate(user.createdAt)}</span></CardCell>
+                      <CardCell label={t("last_sign_in")}><span>{formatDate(user.lastLoginAt)}</span></CardCell>
+                      <CardCell label={t("actions")}>
                         <Button asChild variant="outline" size="sm"><Link href={`/admin/users/${user.id}`} aria-label={t("view_name", { name: user.email })}>{t("view")}</Link></Button>
-                      </td>
+                      </CardCell>
                     </tr>
                   ))}
                 </tbody>

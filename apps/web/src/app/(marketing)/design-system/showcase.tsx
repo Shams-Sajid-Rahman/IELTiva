@@ -29,9 +29,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const colors = [
-  ["Primary", "bg-primary"],
-  ["Teal", "bg-brand-teal"],
-  ["Gold", "bg-brand-gold"],
+  ["Midnight Navy", "bg-brand-navy"],
+  ["Royal Blue", "bg-brand-blue"],
+  ["Soft Blue", "bg-brand-sky"],
+  ["Success Green", "bg-brand-green"],
+  ["Primary action", "bg-primary"],
   ["Accent", "bg-accent"],
   ["Muted", "bg-muted"],
   ["Success", "bg-success"],
@@ -260,7 +262,7 @@ export function DesignSystemShowcase() {
               <HoverLift>
                 <Card className="shadow-soft h-full">
                   <CardHeader>
-                    <Icon className="text-brand-teal size-6" aria-hidden />
+                    <Icon className="text-primary size-6" aria-hidden />
                     <CardTitle role="heading" aria-level={3} className="font-display mt-2 text-xl font-medium">{title}</CardTitle>
                     <CardDescription>{text}</CardDescription>
                   </CardHeader>

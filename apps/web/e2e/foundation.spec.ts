@@ -5,7 +5,9 @@ import { expect, test, type Page } from "@playwright/test";
 const viewports = [
   { name: "mobile", width: 360, height: 780 },
   { name: "tablet", width: 768, height: 1024 },
+  { name: "laptop", width: 1280, height: 800 },
   { name: "desktop", width: 1440, height: 900 },
+  { name: "wide", width: 1600, height: 1000 },
 ];
 const themes = ["light", "dark"] as const;
 const shots = path.resolve(process.cwd(), "../../docs/screenshots/phase-1");
@@ -67,8 +69,8 @@ test("mobile menu navigates and closes", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto("/");
   await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("dialog").getByRole("link", { name: "Design system" }).click();
-  await expect(page).toHaveURL(/design-system/);
+  await page.getByRole("dialog").getByRole("link", { name: "Pricing" }).click();
+  await expect(page).toHaveURL(/#pricing$/);
   await expect(page.getByRole("dialog")).toBeHidden();
 });
 

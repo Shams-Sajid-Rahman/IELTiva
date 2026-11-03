@@ -20,13 +20,14 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
       <div className="flex justify-center px-4 py-10 sm:px-6 sm:py-16">
         <Reveal className="w-full max-w-md">{children}</Reveal>
       </div>
-      <aside className="bg-primary text-primary-foreground relative hidden overflow-hidden p-12 lg:flex lg:flex-col lg:justify-center">
-        <div aria-hidden className="absolute -top-24 -right-24 size-80 rounded-full bg-[radial-gradient(circle,var(--brand-gold),transparent_68%)] opacity-25" />
+      <aside className="bg-brand-surface relative hidden overflow-hidden p-12 lg:flex lg:flex-col lg:justify-center">
+        <div aria-hidden className="brand-grid absolute inset-0" />
+        <div aria-hidden className="absolute -top-24 -right-24 size-80 rounded-full bg-[radial-gradient(circle,var(--brand-sky),transparent_68%)] opacity-25" />
         <p className="font-display relative text-3xl leading-tight font-medium text-balance">{t("panelTitle")}</p>
         <ul className="relative mt-8 space-y-4">
           {points.map((point) => (
             <li key={point} className="flex gap-3 leading-relaxed">
-              <span aria-hidden className="bg-brand-gold mt-2.5 size-1.5 shrink-0 rounded-full dark:bg-current" />
+              <span aria-hidden className="bg-brand-sky mt-2.5 size-1.5 shrink-0 rounded-full" />
               {point}
             </li>
           ))}

@@ -15,7 +15,7 @@ import { api } from "@/lib/api-client";
 import { formatDate, formatDateTime, fullName } from "../format";
 import { applyFieldErrors, useApiAction, useApiPage, useApiQuery, useDebounced } from "../hooks";
 import { useLabels } from "../labels";
-import { ConfirmButton, Empty, FormDialog, InputField, PageHeader, Pagination, QueryBoundary, SearchField, SelectBox, StatusBadge, TableFrame, TextAreaField, tdClass, thClass } from "../ui";
+import { CardCell, ConfirmButton, Empty, FormDialog, InputField, PageHeader, Pagination, QueryBoundary, SearchField, SelectBox, StatusBadge, TableFrame, TextAreaField, thClass } from "../ui";
 
 type EnrollmentRow = { id: string; status: string; createdAt: string; completedAt: string | null; course: { id: string; title: string }; user: { id: string; email: string; profile: { firstName: string; lastName: string } | null } };
 
@@ -40,23 +40,23 @@ export function EnrollmentsPage() {
         {({ items, meta }) =>
           items.length === 0 ? <Empty title={t("no_enrollments_found")} /> : (
             <>
-              <TableFrame label={t("enrollments")}>
+              <TableFrame cards label={t("enrollments")}>
                 <thead><tr>{[t("student"), t("course"), t("status"), t("enrolled"), t("completed"), t("actions")].map((heading) => <th key={heading} scope="col" className={thClass}>{heading}</th>)}</tr></thead>
                 <tbody>
                   {items.map((row) => (
-                    <tr key={row.id}>
-                      <td className={tdClass}><p className="font-medium">{fullName(row.user.profile) || "-"}</p><p className="text-muted-foreground break-all text-xs">{row.user.email}</p></td>
-                      <td className={tdClass}>{row.course.title}</td>
-                      <td className={tdClass}><StatusBadge status={row.status} /></td>
-                      <td className={tdClass}>{formatDate(row.createdAt)}</td>
-                      <td className={tdClass}>{formatDate(row.completedAt)}</td>
-                      <td className={tdClass}>
-                        {!hasPermission("enrollments.manage") ? "-" : row.status === "CANCELED" ? (
+                    <tr key={row.id} role="row">
+                      <CardCell label={t("student")}><div><p className="font-medium">{fullName(row.user.profile) || "-"}</p><p className="text-muted-foreground break-all text-xs">{row.user.email}</p></div></CardCell>
+                      <CardCell label={t("course")}><span>{row.course.title}</span></CardCell>
+                      <CardCell label={t("status")}><StatusBadge status={row.status} /></CardCell>
+                      <CardCell label={t("enrolled")}><span>{formatDate(row.createdAt)}</span></CardCell>
+                      <CardCell label={t("completed")}><span>{formatDate(row.completedAt)}</span></CardCell>
+                      <CardCell label={t("actions")}>
+                        {!hasPermission("enrollments.manage") ? <span>-</span> : row.status === "CANCELED" ? (
                           <Button variant="outline" size="sm" onClick={() => update.mutate({ id: row.id, next: "ACTIVE" })}>{t("restore")}</Button>
                         ) : (
                           <ConfirmButton label={t("cancel_enrollment")} title={t("cancel_this_enrollment")} description={t("the_student_loses_access_and_is_told_about_the_change_t")} destructive onConfirm={() => update.mutate({ id: row.id, next: "CANCELED" })} />
                         )}
-                      </td>
+                      </CardCell>
                     </tr>
                   ))}
                 </tbody>
@@ -184,23 +184,23 @@ export function AuditLogsPage() {
         {({ items, meta }) =>
           items.length === 0 ? <Empty title={t("no_entries_found")} /> : (
             <>
-              <TableFrame label={t("audit_logs")}>
+              <TableFrame cards label={t("audit_logs")}>
                 <thead><tr>{[t("time"), t("actor"), t("action"), t("target"), t("changes")].map((heading) => <th key={heading} scope="col" className={thClass}>{heading}</th>)}</tr></thead>
                 <tbody>
                   {items.map((row) => (
-                    <tr key={row.id}>
-                      <td className={`${tdClass} whitespace-nowrap`}>{formatDateTime(row.createdAt)}</td>
-                      <td className={`${tdClass} break-all`}>{row.actor?.email ?? t("system_or_removed_user")}</td>
-                      <td className={tdClass}><Badge variant="secondary">{row.action}</Badge></td>
-                      <td className={tdClass}><p>{row.entityType}</p><p className="text-muted-foreground font-mono text-xs break-all">{row.entityId ?? "-"}</p></td>
-                      <td className={tdClass}>
+                    <tr key={row.id} role="row">
+                      <CardCell label={t("time")} className="sm:whitespace-nowrap"><span>{formatDateTime(row.createdAt)}</span></CardCell>
+                      <CardCell label={t("actor")} className="break-all"><span>{row.actor?.email ?? t("system_or_removed_user")}</span></CardCell>
+                      <CardCell label={t("action")}><Badge variant="secondary">{row.action}</Badge></CardCell>
+                      <CardCell label={t("target")}><div><p>{row.entityType}</p><p className="text-muted-foreground font-mono text-xs break-all">{row.entityId ?? "-"}</p></div></CardCell>
+                      <CardCell label={t("changes")}>
                         {row.before || row.after ? (
                           <details>
                             <summary className="cursor-pointer text-sm">{t("view")}</summary>
-                            <pre className="mt-2 max-w-sm overflow-x-auto text-xs whitespace-pre-wrap">{JSON.stringify({ before: row.before, after: row.after }, null, 2)}</pre>
+                            <pre className="mt-2 max-w-sm overflow-x-auto text-left text-xs whitespace-pre-wrap">{JSON.stringify({ before: row.before, after: row.after }, null, 2)}</pre>
                           </details>
-                        ) : "-"}
-                      </td>
+                        ) : <span>-</span>}
+                      </CardCell>
                     </tr>
                   ))}
                 </tbody>

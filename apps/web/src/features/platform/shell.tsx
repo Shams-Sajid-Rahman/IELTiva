@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Bell, ChevronRight, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, User } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -39,7 +40,7 @@ function isActive(pathname: string, href: string, rootHref: string) {
   return href === rootHref ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavList({ items, rootHref, collapsed, onNavigate, label }: { items: NavItem[]; rootHref: string; collapsed?: boolean; onNavigate?: () => void; label: string }) {
+function NavList({ items, rootHref, collapsed, onNavigate, label, indicatorId }: { items: NavItem[]; rootHref: string; collapsed?: boolean; onNavigate?: () => void; label: string; indicatorId: string }) {
   const t = useTranslations("app");
   const pathname = usePathname();
   return (
@@ -64,13 +65,14 @@ function NavList({ items, rootHref, collapsed, onNavigate, label }: { items: Nav
                 aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+                  "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors pointer-coarse:py-3",
+                  active ? "text-primary-foreground" : "text-foreground hover:bg-muted",
                   collapsed && "justify-center px-0",
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden />
-                <span className={collapsed ? "sr-only" : "truncate"}>{text}</span>
+                {active && <motion.span aria-hidden layoutId={indicatorId} transition={{ type: "spring", stiffness: 420, damping: 36 }} className="bg-primary absolute inset-0 rounded-lg" />}
+                <Icon className="relative size-4 shrink-0" aria-hidden />
+                <span className={collapsed ? "sr-only" : "relative truncate"}>{text}</span>
               </Link>
             </li>
           );
@@ -203,7 +205,29 @@ function UserMenu() {
   );
 }
 
-export function DashboardShell({ items, rootHref, rootLabel, navLabel, children }: { items: NavItem[]; rootHref: string; rootLabel: string; navLabel: string; children: ReactNode }) {
+/** Thumb-reach navigation for phones and tablets. The drawer still holds the full menu. */
+function BottomNav({ items, rootHref, label }: { items: NavItem[]; rootHref: string; label: string }) {
+  const pathname = usePathname();
+  return (
+    <nav aria-label={label} className="bg-card fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map(({ href, label: text, icon: Icon }) => {
+          const active = isActive(pathname, href, rootHref);
+          return (
+            <li key={href}>
+              <Link href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-1.5 text-[0.6875rem] font-medium transition-colors", active ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+                <Icon className="size-5" aria-hidden />
+                <span className="text-center leading-tight">{text}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+export function DashboardShell({ items, quickItems, rootHref, rootLabel, navLabel, children }: { items: NavItem[]; quickItems?: NavItem[]; rootHref: string; rootLabel: string; navLabel: string; children: ReactNode }) {
   const t = useTranslations("app");
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -238,7 +262,7 @@ export function DashboardShell({ items, rootHref, rootLabel, navLabel, children 
           </Link>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          <NavList items={items} rootHref={rootHref} collapsed={collapsed} label={navLabel} />
+          <NavList items={items} rootHref={rootHref} collapsed={collapsed} label={navLabel} indicatorId="sidebar-active" />
         </div>
         <div className="border-t p-3">
           <Button variant="ghost" className={cn("w-full", collapsed ? "justify-center px-0" : "justify-start")} aria-expanded={!collapsed} onClick={toggle}>
@@ -264,7 +288,7 @@ export function DashboardShell({ items, rootHref, rootLabel, navLabel, children 
                 <SheetDescription className="sr-only">{navLabel}</SheetDescription>
               </SheetHeader>
               <div className="px-4 pb-6">
-                <NavList items={items} rootHref={rootHref} onNavigate={() => setDrawerOpen(false)} label={navLabel} />
+                <NavList items={items} rootHref={rootHref} onNavigate={() => setDrawerOpen(false)} label={navLabel} indicatorId="drawer-active" />
               </div>
             </SheetContent>
           </Sheet>
@@ -275,9 +299,10 @@ export function DashboardShell({ items, rootHref, rootLabel, navLabel, children 
             <UserMenu />
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 p-4 outline-none sm:p-6 lg:p-8">
+        <main id="main" tabIndex={-1} className={cn("mx-auto w-full max-w-7xl min-w-0 flex-1 p-4 outline-none sm:p-6 lg:p-8 2xl:max-w-[96rem]", quickItems && "pb-28 lg:pb-8")}>
           {children}
         </main>
+        {quickItems && <BottomNav items={quickItems} rootHref={rootHref} label={t("quick_navigation")} />}
       </div>
     </div>
   );
