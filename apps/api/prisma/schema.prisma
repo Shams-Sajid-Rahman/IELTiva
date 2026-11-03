@@ -9,11 +9,1407 @@ datasource db {
   provider = "postgresql"
 }
 
-// Foundation table that proves migrations work. The product schema starts in later phases.
+// ---------- Stable values ----------
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETION_PENDING
+  DELETED
+}
+
+enum ExamType {
+  ACADEMIC
+  GENERAL_TRAINING
+}
+
+enum Skill {
+  LISTENING
+  READING
+  WRITING
+  SPEAKING
+}
+
+enum PublicationStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContentProvenance {
+  ORIGINAL
+  LICENSED
+  AI_ASSISTED_REVIEWED
+}
+
+enum ResourceType {
+  ARTICLE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  EXERCISE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELED
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE_SINGLE
+  MULTIPLE_CHOICE_MULTI
+  TRUE_FALSE_NOT_GIVEN
+  YES_NO_NOT_GIVEN
+  MATCHING_GENERAL
+  MATCHING_HEADINGS
+  MATCHING_INFORMATION
+  MATCHING_FEATURES
+  MATCHING_SENTENCE_ENDINGS
+  SENTENCE_COMPLETION
+  SUMMARY_COMPLETION
+  NOTE_COMPLETION
+  TABLE_COMPLETION
+  FLOW_CHART_COMPLETION
+  FORM_COMPLETION
+  DIAGRAM_LABELLING
+  PLAN_LABELLING
+  MAP_LABELLING
+  SHORT_ANSWER
+}
+
+enum WritingTaskType {
+  ACADEMIC_TASK_1
+  GENERAL_TASK_1
+  TASK_2
+}
+
+enum SpeakingPart {
+  PART_1
+  PART_2
+  PART_3
+}
+
+enum AttemptMode {
+  PRACTICE
+  TIMED
+  MOCK
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  ABANDONED
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AssessmentCriterion {
+  TASK_ACHIEVEMENT
+  TASK_RESPONSE
+  COHERENCE_COHESION
+  LEXICAL_RESOURCE
+  GRAMMATICAL_RANGE_ACCURACY
+  FLUENCY_COHERENCE
+  PRONUNCIATION
+}
+
+enum FeedbackType {
+  SUMMARY
+  STRENGTH
+  IMPROVEMENT
+  CORRECTION
+  PRONUNCIATION
+}
+
+enum BandVisibility {
+  HIDDEN
+  INTERNAL
+  PUBLIC
+}
+
+enum AITier {
+  DEFAULT
+  COMPLEX
+  LIGHT
+}
+
+enum CalibrationRecordType {
+  HUMAN_MARK
+  ADJUDICATION
+  AI_PREDICTION
+}
+
+enum CalibrationSplit {
+  TUNING
+  VALIDATION
+  TEST
+}
+
+enum PurchaseStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXHAUSTED
+  EXPIRED
+  REVOKED
+}
+
+enum NotificationType {
+  SYSTEM
+  LEARNING
+  ASSESSMENT
+  PAYMENT
+}
+
+enum PublicationAction {
+  SUBMITTED_FOR_REVIEW
+  PUBLISHED
+  ARCHIVED
+  RESTORED_TO_DRAFT
+}
+
+// ---------- Foundation ----------
+
 model AppMetadata {
   key       String   @id
   value     String
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("app_metadata")
+}
+
+// ---------- A. User management ----------
+
+model User {
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  email               String     @unique
+  passwordHash        String?    @map("password_hash")
+  status              UserStatus @default(ACTIVE)
+  emailVerifiedAt     DateTime?  @map("email_verified_at") @db.Timestamptz(3)
+  lastLoginAt         DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  deletionRequestedAt DateTime?  @map("deletion_requested_at") @db.Timestamptz(3)
+  deletionScheduledAt DateTime?  @map("deletion_scheduled_at") @db.Timestamptz(3)
+  deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(3)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  profile                 UserProfile?
+  userRoles               UserRole[]                    @relation("RoleHolder")
+  rolesAssigned           UserRole[]                    @relation("RoleAssigner")
+  sessions                UserSession[]
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  oauthAccounts           OAuthAccount[]
+  enrollments             UserEnrollment[]
+  learningProgress        LearningProgress[]
+  studyPlans              StudyPlan[]
+  learningHistory         UserLearningHistory[]
+  examVersionsCreated     ExamVersion[]                 @relation("ExamVersionCreator")
+  examVersionsReviewed    ExamVersion[]                 @relation("ExamVersionReviewer")
+  examAttempts            ExamAttempt[]
+  assessmentsReviewed     AssessmentResult[]
+  instructorApprovals     AIModelConfiguration[]        @relation("InstructorApproval")
+  ownerApprovals          AIModelConfiguration[]        @relation("OwnerApproval")
+  aiJobs                  AIAssessmentJob[]
+  aiUsageLogs             AIUsageLog[]
+  calibrationMarks        AssessmentCalibrationRecord[]
+  purchases               UserPurchase[]
+  entitlements            UserEntitlement[]
+  refundsProcessed        RefundRecord[]
+  auditLogs               AuditLog[]
+  notifications           UserNotification[]
+  publicationActions      ContentPublicationHistory[]
+
+  @@index([status])
+  @@index([deletionScheduledAt])
+  @@map("users")
+}
+
+model UserProfile {
+  userId           String    @id @map("user_id") @db.Uuid
+  firstName        String    @map("first_name")
+  lastName         String    @map("last_name")
+  avatarStorageKey String?   @map("avatar_storage_key")
+  countryCode      String?   @map("country_code") @db.Char(2)
+  locale           String    @default("en")
+  timezone         String    @default("UTC")
+  examType         ExamType? @map("exam_type")
+  targetBand       Decimal?  @map("target_band") @db.Decimal(2, 1)
+  examDate         DateTime? @map("exam_date") @db.Date
+  weeklyStudyHours Int?      @map("weekly_study_hours")
+  onboardedAt      DateTime? @map("onboarded_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Role {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  userRoles   UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId       String   @map("user_id") @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user       User  @relation("RoleHolder", fields: [userId], references: [id], onDelete: Cascade)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assignedBy User? @relation("RoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserSession {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  userAgent  String?   @map("user_agent")
+  ipAddress  String?   @map("ip_address") @db.Inet
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  sessionId    String    @map("session_id") @db.Uuid
+  familyId     String    @map("family_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  replacedById String?   @unique @map("replaced_by_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt       DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session    UserSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("TokenRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   RefreshToken? @relation("TokenRotation")
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model OAuthAccount {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@map("oauth_accounts")
+}
+
+// ---------- B. Learning system ----------
+
+model LearningModule {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  skill       Skill?
+  position    Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  courses Course[]
+
+  @@map("learning_modules")
+}
+
+model Course {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  moduleId    String            @map("module_id") @db.Uuid
+  slug        String            @unique
+  title       String
+  description String?
+  examType    ExamType?         @map("exam_type")
+  status      PublicationStatus @default(DRAFT)
+  provenance  ContentProvenance @default(ORIGINAL)
+  isPremium   Boolean           @default(false) @map("is_premium")
+  publishedAt DateTime?         @map("published_at") @db.Timestamptz(3)
+  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  module      LearningModule              @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  sections    CourseSection[]
+  enrollments UserEnrollment[]
+  history     UserLearningHistory[]
+  publication ContentPublicationHistory[]
+
+  @@index([moduleId, status])
+  @@index([status, examType])
+  @@map("courses")
+}
+
+model CourseSection {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  courseId    String   @map("course_id") @db.Uuid
+  position    Int
+  title       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  course    Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  resources LearningResource[]
+
+  @@unique([courseId, position])
+  @@map("course_sections")
+}
+
+model LearningResource {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  sectionId       String       @map("section_id") @db.Uuid
+  position        Int
+  type            ResourceType
+  title           String
+  body            String?
+  storageKey      String?      @map("storage_key")
+  durationMinutes Int?         @map("duration_minutes")
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section  CourseSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress LearningProgress[]
+  history  UserLearningHistory[]
+
+  @@unique([sectionId, position])
+  @@map("learning_resources")
+}
+
+model UserEnrollment {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  courseId    String           @map("course_id") @db.Uuid
+  status      EnrollmentStatus @default(ACTIVE)
+  completedAt DateTime?        @map("completed_at") @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@map("user_enrollments")
+}
+
+model LearningProgress {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  resourceId  String         @map("resource_id") @db.Uuid
+  status      ProgressStatus @default(NOT_STARTED)
+  percent     Int            @default(0)
+  completedAt DateTime?      @map("completed_at") @db.Timestamptz(3)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource LearningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceId])
+  @@index([resourceId])
+  @@map("learning_progress")
+}
+
+model StudyPlan {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  aiJobId    String?   @map("ai_job_id") @db.Uuid
+  targetBand Decimal?  @map("target_band") @db.Decimal(2, 1)
+  examDate   DateTime? @map("exam_date") @db.Date
+  startsOn   DateTime  @map("starts_on") @db.Date
+  endsOn     DateTime  @map("ends_on") @db.Date
+  summary    String?
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aiJob AIAssessmentJob? @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
+  tasks StudyPlanTask[]
+
+  @@index([userId])
+  @@index([aiJobId])
+  @@map("study_plans")
+}
+
+model StudyPlanTask {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  planId           String    @map("plan_id") @db.Uuid
+  scheduledDate    DateTime  @map("scheduled_date") @db.Date
+  skill            Skill?
+  title            String
+  description      String?
+  estimatedMinutes Int?      @map("estimated_minutes")
+  resourceId       String?   @map("resource_id") @db.Uuid
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  plan StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, scheduledDate])
+  @@map("study_plan_tasks")
+}
+
+model UserLearningHistory {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  courseId   String?  @map("course_id") @db.Uuid
+  resourceId String?  @map("resource_id") @db.Uuid
+  eventType  String   @map("event_type")
+  minutes    Int?
+  metadata   Json?
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course   Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  resource LearningResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([courseId])
+  @@index([resourceId])
+  @@map("user_learning_history")
+}
+
+// ---------- C. Examination content ----------
+
+model Exam {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  slug      String    @unique
+  title     String
+  examType  ExamType? @map("exam_type")
+  isPremium Boolean   @default(false) @map("is_premium")
+  isMock    Boolean   @default(false) @map("is_mock")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  versions ExamVersion[]
+
+  @@index([examType, isMock])
+  @@map("exams")
+}
+
+model ExamVersion {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  examId           String            @map("exam_id") @db.Uuid
+  versionNumber    Int               @map("version_number")
+  status           PublicationStatus @default(DRAFT)
+  provenance       ContentProvenance @default(ORIGINAL)
+  sourceNote       String?           @map("source_note")
+  bandTableVersion String?           @map("band_table_version")
+  createdById      String?           @map("created_by_id") @db.Uuid
+  reviewedById     String?           @map("reviewed_by_id") @db.Uuid
+  publishedAt      DateTime?         @map("published_at") @db.Timestamptz(3)
+  archivedAt       DateTime?         @map("archived_at") @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  exam        Exam                        @relation(fields: [examId], references: [id], onDelete: Restrict)
+  createdBy   User?                       @relation("ExamVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy  User?                       @relation("ExamVersionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  sections    ExamSection[]
+  attempts    ExamAttempt[]
+  publication ContentPublicationHistory[]
+
+  @@unique([examId, versionNumber])
+  @@index([status])
+  @@map("exam_versions")
+}
+
+model ExamSection {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  examVersionId   String   @map("exam_version_id") @db.Uuid
+  position        Int
+  skill           Skill
+  title           String
+  instructions    String?
+  durationSeconds Int      @map("duration_seconds")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  examVersion       ExamVersion        @relation(fields: [examVersionId], references: [id], onDelete: Cascade)
+  questionGroups    QuestionGroup[]
+  readingPassages   ReadingPassage[]
+  listeningAudios   ListeningAudio[]
+  writingTasks      WritingTask[]
+  speakingQuestions SpeakingQuestion[]
+  sectionAttempts   SectionAttempt[]
+
+  @@unique([examVersionId, position])
+  @@map("exam_sections")
+}
+
+model ReadingPassage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  sectionId String   @map("section_id") @db.Uuid
+  position  Int
+  title     String
+  body      String
+  wordCount Int      @map("word_count")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section ExamSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, position])
+  @@map("reading_passages")
+}
+
+model ListeningAudio {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  sectionId       String   @map("section_id") @db.Uuid
+  position        Int
+  storageKey      String   @map("storage_key")
+  durationSeconds Int      @map("duration_seconds")
+  transcript      String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section ExamSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, position])
+  @@map("listening_audios")
+}
+
+model QuestionGroup {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  sectionId       String       @map("section_id") @db.Uuid
+  position        Int
+  type            QuestionType
+  instructions    String?
+  stimulus        Json?
+  imageStorageKey String?      @map("image_storage_key")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section   ExamSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@unique([sectionId, position])
+  @@map("question_groups")
+}
+
+model Question {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  number      Int
+  prompt      String?
+  explanation String?
+  marks       Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  group     QuestionGroup      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  options   QuestionOption[]
+  answers   QuestionAnswer[]
+  responses QuestionResponse[]
+
+  @@unique([groupId, number])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  position   Int
+  label      String
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, position])
+  @@unique([questionId, label])
+  @@map("question_options")
+}
+
+model QuestionAnswer {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  questionId    String   @map("question_id") @db.Uuid
+  acceptedValue String   @map("accepted_value")
+  caseSensitive Boolean  @default(false) @map("case_sensitive")
+  maxWords      Int?     @map("max_words")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, acceptedValue])
+  @@map("question_answers")
+}
+
+model WritingTask {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  sectionId        String          @map("section_id") @db.Uuid
+  position         Int
+  taskType         WritingTaskType @map("task_type")
+  prompt           String
+  imageStorageKey  String?         @map("image_storage_key")
+  minWords         Int             @map("min_words")
+  suggestedMinutes Int             @map("suggested_minutes")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section     ExamSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  submissions WritingSubmission[]
+
+  @@unique([sectionId, position])
+  @@map("writing_tasks")
+}
+
+model SpeakingQuestion {
+  id               String       @id @default(uuid(7)) @db.Uuid
+  sectionId        String       @map("section_id") @db.Uuid
+  part             SpeakingPart
+  position         Int
+  prompt           String
+  cueCard          Json?        @map("cue_card")
+  audioStorageKey  String?      @map("audio_storage_key")
+  prepSeconds      Int?         @map("prep_seconds")
+  maxAnswerSeconds Int          @map("max_answer_seconds")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section     ExamSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  submissions SpeakingSubmission[]
+
+  @@unique([sectionId, part, position])
+  @@map("speaking_questions")
+}
+
+// ---------- D. Examination attempts ----------
+
+model ExamAttempt {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  examVersionId    String        @map("exam_version_id") @db.Uuid
+  mode             AttemptMode
+  status           AttemptStatus @default(IN_PROGRESS)
+  bandTableVersion String?       @map("band_table_version")
+  overallBand      Decimal?      @map("overall_band") @db.Decimal(2, 1)
+  startedAt        DateTime      @default(now()) @map("started_at") @db.Timestamptz(3)
+  expiresAt        DateTime?     @map("expires_at") @db.Timestamptz(3)
+  submittedAt      DateTime?     @map("submitted_at") @db.Timestamptz(3)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examVersion ExamVersion      @relation(fields: [examVersionId], references: [id], onDelete: Restrict)
+  sections    SectionAttempt[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([examVersionId])
+  @@index([status, expiresAt])
+  @@map("exam_attempts")
+}
+
+model SectionAttempt {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  examAttemptId    String        @map("exam_attempt_id") @db.Uuid
+  sectionId        String        @map("section_id") @db.Uuid
+  status           AttemptStatus @default(IN_PROGRESS)
+  startedAt        DateTime?     @map("started_at") @db.Timestamptz(3)
+  expiresAt        DateTime?     @map("expires_at") @db.Timestamptz(3)
+  lastSavedAt      DateTime?     @map("last_saved_at") @db.Timestamptz(3)
+  submittedAt      DateTime?     @map("submitted_at") @db.Timestamptz(3)
+  timeSpentSeconds Int           @default(0) @map("time_spent_seconds")
+  rawScore         Int?          @map("raw_score")
+  bandScore        Decimal?      @map("band_score") @db.Decimal(2, 1)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  examAttempt         ExamAttempt          @relation(fields: [examAttemptId], references: [id], onDelete: Cascade)
+  section             ExamSection          @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  responses           QuestionResponse[]
+  writingSubmissions  WritingSubmission[]
+  speakingSubmissions SpeakingSubmission[]
+  assessmentResults   AssessmentResult[]
+
+  @@unique([examAttemptId, sectionId])
+  @@index([sectionId])
+  @@map("section_attempts")
+}
+
+model QuestionResponse {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  sectionAttemptId String    @map("section_attempt_id") @db.Uuid
+  questionId       String    @map("question_id") @db.Uuid
+  response         Json?
+  isCorrect        Boolean?  @map("is_correct")
+  isFlagged        Boolean   @default(false) @map("is_flagged")
+  answeredAt       DateTime? @map("answered_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sectionAttempt SectionAttempt @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  question       Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([sectionAttemptId, questionId])
+  @@index([questionId])
+  @@map("question_responses")
+}
+
+model WritingSubmission {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  sectionAttemptId   String           @map("section_attempt_id") @db.Uuid
+  writingTaskId      String           @map("writing_task_id") @db.Uuid
+  parentSubmissionId String?          @map("parent_submission_id") @db.Uuid
+  text               String
+  wordCount          Int              @default(0) @map("word_count")
+  timeSpentSeconds   Int              @default(0) @map("time_spent_seconds")
+  status             ProcessingStatus @default(PENDING)
+  lastSavedAt        DateTime?        @map("last_saved_at") @db.Timestamptz(3)
+  submittedAt        DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sectionAttempt SectionAttempt      @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  writingTask    WritingTask         @relation(fields: [writingTaskId], references: [id], onDelete: Restrict)
+  parent         WritingSubmission?  @relation("WritingRevision", fields: [parentSubmissionId], references: [id], onDelete: SetNull)
+  revisions      WritingSubmission[] @relation("WritingRevision")
+  results        AssessmentResult[]
+
+  @@unique([sectionAttemptId, writingTaskId])
+  @@index([writingTaskId])
+  @@index([parentSubmissionId])
+  @@map("writing_submissions")
+}
+
+model SpeakingSubmission {
+  id                    String           @id @default(uuid(7)) @db.Uuid
+  sectionAttemptId      String           @map("section_attempt_id") @db.Uuid
+  speakingQuestionId    String           @map("speaking_question_id") @db.Uuid
+  audioStorageKey       String?          @map("audio_storage_key")
+  durationSeconds       Int?             @map("duration_seconds")
+  transcript            String?
+  wordTimings           Json?            @map("word_timings")
+  fluencyMetrics        Json?            @map("fluency_metrics")
+  pronunciationFeedback Json?            @map("pronunciation_feedback")
+  status                ProcessingStatus @default(PENDING)
+  audioDeleteAfter      DateTime?        @map("audio_delete_after") @db.Timestamptz(3)
+  submittedAt           DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sectionAttempt   SectionAttempt     @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  speakingQuestion SpeakingQuestion   @relation(fields: [speakingQuestionId], references: [id], onDelete: Restrict)
+  results          AssessmentResult[]
+
+  @@unique([sectionAttemptId, speakingQuestionId])
+  @@index([speakingQuestionId])
+  @@index([audioDeleteAfter])
+  @@map("speaking_submissions")
+}
+
+model AssessmentResult {
+  id                   String         @id @default(uuid(7)) @db.Uuid
+  writingSubmissionId  String?        @map("writing_submission_id") @db.Uuid
+  speakingSubmissionId String?        @map("speaking_submission_id") @db.Uuid
+  sectionAttemptId     String?        @map("section_attempt_id") @db.Uuid
+  aiJobId              String?        @map("ai_job_id") @db.Uuid
+  modelConfigurationId String?        @map("model_configuration_id") @db.Uuid
+  promptVersionId      String?        @map("prompt_version_id") @db.Uuid
+  providerSnapshot     String?        @map("provider_snapshot")
+  modelSnapshot        String?        @map("model_snapshot")
+  overallBand          Decimal?       @map("overall_band") @db.Decimal(2, 1)
+  bandVisibility       BandVisibility @default(HIDDEN) @map("band_visibility")
+  isCurrent            Boolean        @default(true) @map("is_current")
+  reviewedById         String?        @map("reviewed_by_id") @db.Uuid
+  reviewerNote         String?        @map("reviewer_note")
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  writingSubmission  WritingSubmission?    @relation(fields: [writingSubmissionId], references: [id], onDelete: Cascade)
+  speakingSubmission SpeakingSubmission?   @relation(fields: [speakingSubmissionId], references: [id], onDelete: Cascade)
+  sectionAttempt     SectionAttempt?       @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  aiJob              AIAssessmentJob?      @relation(fields: [aiJobId], references: [id], onDelete: SetNull)
+  modelConfiguration AIModelConfiguration? @relation(fields: [modelConfigurationId], references: [id], onDelete: SetNull)
+  promptVersion      AIPromptVersion?      @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+  reviewedBy         User?                 @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+  feedback           AssessmentFeedback[]
+  criterionScores    CriterionScore[]
+
+  @@index([writingSubmissionId])
+  @@index([speakingSubmissionId])
+  @@index([sectionAttemptId])
+  @@index([aiJobId])
+  @@index([modelConfigurationId])
+  @@index([promptVersionId])
+  @@index([reviewedById])
+  @@map("assessment_results")
+}
+
+model AssessmentFeedback {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  resultId  String       @map("result_id") @db.Uuid
+  type      FeedbackType
+  position  Int
+  body      String
+  evidence  Json?
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  result AssessmentResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, type, position])
+  @@map("assessment_feedback")
+}
+
+model CriterionScore {
+  id        String              @id @default(uuid(7)) @db.Uuid
+  resultId  String              @map("result_id") @db.Uuid
+  criterion AssessmentCriterion
+  band      Decimal             @db.Decimal(2, 1)
+  rationale String?
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  result AssessmentResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, criterion])
+  @@map("criterion_scores")
+}
+
+// ---------- E. AI assessment infrastructure ----------
+
+model AIModelConfiguration {
+  id                     String         @id @default(uuid(7)) @db.Uuid
+  taskKey                String         @map("task_key")
+  provider               String
+  modelId                String         @map("model_id")
+  tier                   AITier         @default(DEFAULT)
+  effort                 String?
+  parameters             Json?
+  inputMicrousdPerMtok   BigInt?        @map("input_microusd_per_mtok")
+  outputMicrousdPerMtok  BigInt?        @map("output_microusd_per_mtok")
+  bandVisibility         BandVisibility @default(HIDDEN) @map("band_visibility")
+  calibrationValidatedAt DateTime?      @map("calibration_validated_at") @db.Timestamptz(3)
+  instructorApprovedById String?        @map("instructor_approved_by_id") @db.Uuid
+  ownerApprovedById      String?        @map("owner_approved_by_id") @db.Uuid
+  isActive               Boolean        @default(false) @map("is_active")
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  instructorApprovedBy User?                         @relation("InstructorApproval", fields: [instructorApprovedById], references: [id], onDelete: SetNull)
+  ownerApprovedBy      User?                         @relation("OwnerApproval", fields: [ownerApprovedById], references: [id], onDelete: SetNull)
+  results              AssessmentResult[]
+  jobs                 AIAssessmentJob[]
+  usageLogs            AIUsageLog[]
+  calibrationRecords   AssessmentCalibrationRecord[]
+
+  @@unique([taskKey, provider, modelId])
+  @@index([instructorApprovedById])
+  @@index([ownerApprovedById])
+  @@map("ai_model_configurations")
+}
+
+model AIPromptVersion {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  taskKey       String   @map("task_key")
+  version       Int
+  rubricVersion String?  @map("rubric_version")
+  content       String
+  isActive      Boolean  @default(false) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  results            AssessmentResult[]
+  jobs               AIAssessmentJob[]
+  calibrationRecords AssessmentCalibrationRecord[]
+
+  @@unique([taskKey, version])
+  @@map("ai_prompt_versions")
+}
+
+model AIAssessmentJob {
+  id                   String           @id @default(uuid(7)) @db.Uuid
+  userId               String?          @map("user_id") @db.Uuid
+  taskKey              String           @map("task_key")
+  subjectType          String           @map("subject_type")
+  subjectId            String           @map("subject_id")
+  modelConfigurationId String?          @map("model_configuration_id") @db.Uuid
+  promptVersionId      String?          @map("prompt_version_id") @db.Uuid
+  idempotencyKey       String           @unique @map("idempotency_key")
+  status               ProcessingStatus @default(PENDING)
+  attempts             Int              @default(0)
+  errorCode            String?          @map("error_code")
+  errorMessage         String?          @map("error_message")
+  queuedAt             DateTime         @default(now()) @map("queued_at") @db.Timestamptz(3)
+  startedAt            DateTime?        @map("started_at") @db.Timestamptz(3)
+  finishedAt           DateTime?        @map("finished_at") @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user               User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  modelConfiguration AIModelConfiguration? @relation(fields: [modelConfigurationId], references: [id], onDelete: SetNull)
+  promptVersion      AIPromptVersion?      @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+  results            AssessmentResult[]
+  usageLogs          AIUsageLog[]
+  studyPlans         StudyPlan[]
+
+  @@index([status, queuedAt])
+  @@index([userId, queuedAt(sort: Desc)])
+  @@index([subjectType, subjectId])
+  @@index([modelConfigurationId])
+  @@index([promptVersionId])
+  @@map("ai_assessment_jobs")
+}
+
+model AIUsageLog {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  userId               String?  @map("user_id") @db.Uuid
+  jobId                String?  @map("job_id") @db.Uuid
+  modelConfigurationId String?  @map("model_configuration_id") @db.Uuid
+  taskKey              String   @map("task_key")
+  provider             String
+  modelId              String   @map("model_id")
+  inputTokens          Int      @default(0) @map("input_tokens")
+  outputTokens         Int      @default(0) @map("output_tokens")
+  cacheReadTokens      Int      @default(0) @map("cache_read_tokens")
+  cacheWriteTokens     Int      @default(0) @map("cache_write_tokens")
+  isBatch              Boolean  @default(false) @map("is_batch")
+  costMicrousd         BigInt?  @map("cost_microusd")
+  latencyMs            Int?     @map("latency_ms")
+  outcome              String
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user               User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  job                AIAssessmentJob?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  modelConfiguration AIModelConfiguration? @relation(fields: [modelConfigurationId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([taskKey, createdAt])
+  @@index([userId, createdAt])
+  @@index([jobId])
+  @@index([modelConfigurationId])
+  @@map("ai_usage_logs")
+}
+
+model AssessmentCalibrationRecord {
+  id                   String                @id @default(uuid(7)) @db.Uuid
+  sampleReference      String                @map("sample_reference")
+  datasetVersion       String                @map("dataset_version")
+  skill                Skill
+  taskKey              String                @map("task_key")
+  split                CalibrationSplit
+  recordType           CalibrationRecordType @map("record_type")
+  markerId             String?               @map("marker_id") @db.Uuid
+  modelConfigurationId String?               @map("model_configuration_id") @db.Uuid
+  promptVersionId      String?               @map("prompt_version_id") @db.Uuid
+  responseText         String?               @map("response_text")
+  audioStorageKey      String?               @map("audio_storage_key")
+  consentVersion       String?               @map("consent_version")
+  deidentifiedAt       DateTime?             @map("deidentified_at") @db.Timestamptz(3)
+  overallBand          Decimal?              @map("overall_band") @db.Decimal(2, 1)
+  criterionBands       Json?                 @map("criterion_bands")
+  notes                String?
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  marker             User?                 @relation(fields: [markerId], references: [id], onDelete: SetNull)
+  modelConfiguration AIModelConfiguration? @relation(fields: [modelConfigurationId], references: [id], onDelete: SetNull)
+  promptVersion      AIPromptVersion?      @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+
+  @@index([datasetVersion, split])
+  @@index([sampleReference])
+  @@index([markerId])
+  @@index([modelConfigurationId])
+  @@index([promptVersionId])
+  @@map("assessment_calibration_records")
+}
+
+// ---------- F. Payments and packages ----------
+
+model PracticePackage {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  code         String
+  regionCode   String    @default("GLOBAL") @map("region_code")
+  name         String
+  description  String?
+  durationDays Int       @map("duration_days")
+  currency     String    @db.Char(3)
+  priceMinor   Int       @map("price_minor")
+  isActive     Boolean   @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  purchases    UserPurchase[]
+  entitlements UserEntitlement[]
+
+  @@unique([code, regionCode, currency])
+  @@index([isActive, regionCode])
+  @@map("practice_packages")
+}
+
+model AssessmentPackage {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  code         String
+  regionCode   String    @default("GLOBAL") @map("region_code")
+  name         String
+  description  String?
+  skill        Skill
+  credits      Int
+  validityDays Int?      @map("validity_days")
+  currency     String    @db.Char(3)
+  priceMinor   Int       @map("price_minor")
+  isActive     Boolean   @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  purchases    UserPurchase[]
+  entitlements UserEntitlement[]
+
+  @@unique([code, regionCode, currency])
+  @@index([isActive, regionCode, skill])
+  @@map("assessment_packages")
+}
+
+model PaymentGateway {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  code        String   @unique
+  name        String
+  isEnabled   Boolean  @default(false) @map("is_enabled")
+  isSandbox   Boolean  @default(true) @map("is_sandbox")
+  regionCodes String[] @map("region_codes")
+  currencies  String[]
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  transactions PaymentTransaction[]
+
+  @@map("payment_gateways")
+}
+
+model UserPurchase {
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  userId              String         @map("user_id") @db.Uuid
+  practicePackageId   String?        @map("practice_package_id") @db.Uuid
+  assessmentPackageId String?        @map("assessment_package_id") @db.Uuid
+  status              PurchaseStatus @default(PENDING)
+  currency            String         @db.Char(3)
+  amountMinor         Int            @map("amount_minor")
+  discountMinor       Int            @default(0) @map("discount_minor")
+  packageSnapshot     Json           @map("package_snapshot")
+  paidAt              DateTime?      @map("paid_at") @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  practicePackage   PracticePackage?     @relation(fields: [practicePackageId], references: [id], onDelete: Restrict)
+  assessmentPackage AssessmentPackage?   @relation(fields: [assessmentPackageId], references: [id], onDelete: Restrict)
+  transactions      PaymentTransaction[]
+  entitlements      UserEntitlement[]
+  refunds           RefundRecord[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([practicePackageId])
+  @@index([assessmentPackageId])
+  @@index([status])
+  @@map("user_purchases")
+}
+
+model PaymentTransaction {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  purchaseId           String        @map("purchase_id") @db.Uuid
+  gatewayId            String        @map("gateway_id") @db.Uuid
+  trackingId           String        @unique @map("tracking_id")
+  idempotencyKey       String        @unique @map("idempotency_key")
+  gatewayTransactionId String?       @map("gateway_transaction_id")
+  gatewayValidationId  String?       @map("gateway_validation_id")
+  status               PaymentStatus @default(PENDING)
+  currency             String        @db.Char(3)
+  amountMinor          Int           @map("amount_minor")
+  rawResponse          Json?         @map("raw_response")
+  succeededAt          DateTime?     @map("succeeded_at") @db.Timestamptz(3)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  purchase UserPurchase   @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  gateway  PaymentGateway @relation(fields: [gatewayId], references: [id], onDelete: Restrict)
+  refunds  RefundRecord[]
+
+  @@unique([gatewayId, gatewayTransactionId])
+  @@index([purchaseId])
+  @@index([status, createdAt])
+  @@map("payment_transactions")
+}
+
+model UserEntitlement {
+  id                  String            @id @default(uuid(7)) @db.Uuid
+  userId              String            @map("user_id") @db.Uuid
+  purchaseId          String?           @map("purchase_id") @db.Uuid
+  practicePackageId   String?           @map("practice_package_id") @db.Uuid
+  assessmentPackageId String?           @map("assessment_package_id") @db.Uuid
+  featureKey          String            @map("feature_key")
+  status              EntitlementStatus @default(ACTIVE)
+  creditsGranted      Int?              @map("credits_granted")
+  creditsUsed         Int               @default(0) @map("credits_used")
+  creditsReserved     Int               @default(0) @map("credits_reserved")
+  startsAt            DateTime          @default(now()) @map("starts_at") @db.Timestamptz(3)
+  endsAt              DateTime?         @map("ends_at") @db.Timestamptz(3)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchase          UserPurchase?      @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  practicePackage   PracticePackage?   @relation(fields: [practicePackageId], references: [id], onDelete: Restrict)
+  assessmentPackage AssessmentPackage? @relation(fields: [assessmentPackageId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseId, featureKey])
+  @@index([userId, featureKey, status])
+  @@index([endsAt])
+  @@index([practicePackageId])
+  @@index([assessmentPackageId])
+  @@map("user_entitlements")
+}
+
+model RefundRecord {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  purchaseId      String       @map("purchase_id") @db.Uuid
+  transactionId   String       @map("transaction_id") @db.Uuid
+  processedById   String?      @map("processed_by_id") @db.Uuid
+  gatewayRefundId String?      @map("gateway_refund_id")
+  status          RefundStatus @default(PENDING)
+  currency        String       @db.Char(3)
+  amountMinor     Int          @map("amount_minor")
+  reason          String?
+  completedAt     DateTime?    @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  purchase    UserPurchase       @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  transaction PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  processedBy User?              @relation(fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@unique([transactionId, gatewayRefundId])
+  @@index([purchaseId])
+  @@index([processedById])
+  @@map("refund_records")
+}
+
+// ---------- G. Platform administration ----------
+
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  before     Json?
+  after      Json?
+  ipAddress  String?  @map("ip_address") @db.Inet
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  recipients UserNotification[]
+
+  @@index([type, createdAt])
+  @@map("notifications")
+}
+
+model UserNotification {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  notificationId String    @map("notification_id") @db.Uuid
+  readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@index([userId, readAt])
+  @@index([notificationId])
+  @@map("user_notifications")
+}
+
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_settings")
+}
+
+model ContentPublicationHistory {
+  id            String             @id @default(uuid(7)) @db.Uuid
+  examVersionId String?            @map("exam_version_id") @db.Uuid
+  courseId      String?            @map("course_id") @db.Uuid
+  actorId       String?            @map("actor_id") @db.Uuid
+  action        PublicationAction
+  fromStatus    PublicationStatus? @map("from_status")
+  toStatus      PublicationStatus  @map("to_status")
+  note          String?
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  examVersion ExamVersion? @relation(fields: [examVersionId], references: [id], onDelete: SetNull)
+  course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  actor       User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([examVersionId])
+  @@index([courseId])
+  @@index([actorId])
+  @@map("content_publication_history")
 }

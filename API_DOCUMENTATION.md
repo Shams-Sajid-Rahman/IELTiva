@@ -2,7 +2,7 @@
 
 **Status:** proposed contract, updated for the decisions of 2026-11-03. Nothing here is implemented yet.
 
-Only the Health endpoints are implemented so far. Endpoints marked **R2** arrive in Release 2.
+Only the Health endpoints are implemented so far. Table names in later sections come from the Phase 0 design, and [DATABASE_DESIGN.md](DATABASE_DESIGN.md#differences-from-the-phase-0-design) lists what Phase 2A changed. Future endpoints will be reconciled when each is built. Endpoints marked **R2** arrive in Release 2.
 
 **Base URL:** `/api/v1`. Local: `http://localhost:5000/api/v1`.
 

@@ -1,6 +1,6 @@
 # IELTiva Development Roadmap
 
-**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is built and awaits owner review. Phase 2 hasn't started.
+**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is complete. Phase 2A (database architecture) is built and awaits owner review. Phase 2B hasn't started.
 
 Each phase ends with something testable and needs owner approval before the next begins. Durations are rough estimates for one full-time developer with AI assistance, and exclude content creation and marking.
 
@@ -50,6 +50,12 @@ Authorized by the owner as design system and frontend architecture first, with n
 **Done when:** a fresh clone runs web and API from documented commands, and tests pass against a real database.
 
 **Moved out by owner scope:** Redis, the worker and continuous integration. They must be in place before Phase 4, and continuous integration should come first.
+
+### Phase 2A: Database architecture
+
+The complete PostgreSQL schema, migration, seed and tests, with no feature code.
+
+**Done when:** migrations apply to an empty database, the seed is repeatable, constraints are tested and the owner approves.
 
 ### Phase 2: Public website, authentication and dashboard (2 weeks)
 

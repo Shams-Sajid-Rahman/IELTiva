@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 1B, backend foundation.** The design system and API foundation exist, so there's no product to use yet.
+> **Status: Phase 2A, database architecture.** The design system, API foundation and database schema exist, so there's no product to use yet.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -113,6 +113,7 @@ Prisma 7 reads its connection from `apps/api/prisma.config.ts`, not the schema, 
 | Create and apply a development migration | `npm run db:migrate -- --name describe_change` |
 | Apply committed migrations, including production | `npm run db:deploy` |
 | Check migration status | `npm run db:status` |
+| Load default roles, permissions, modules and settings. Safe to repeat | `npm run db:seed` |
 
 Don't use `prisma migrate reset` on any database holding data you need.
 

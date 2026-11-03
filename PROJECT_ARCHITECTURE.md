@@ -17,6 +17,8 @@ It adds four things that project doesn't have:
 | Exams need accurate timers and must survive a lost connection | The server owns exam state and the client autosaves |
 | Private audio and documents | Private object storage with short-lived links |
 
+> **Database update:** Phase 2A replaced some Phase 0 tables named in this document, such as `ai_band_releases`, `ai_task_routes`, `ai_usage_events`, `retention_policies` and the credit ledger. See [Differences from the Phase 0 design](DATABASE_DESIGN.md#differences-from-the-phase-0-design). The rules themselves still apply.
+
 ## 2. System overview
 
 ```mermaid

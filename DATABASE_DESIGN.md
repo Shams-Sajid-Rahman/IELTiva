@@ -1,319 +1,239 @@
 # IELTiva Database Design
 
-**Status:** approved, with the owner's final Phase 0 decisions applied. **Database:** PostgreSQL 18 with Prisma 7.
-
-Tables marked **(R2)** are created in Release 2. The rest are Release 1.
+**Status:** implemented in Phase 2A. **Database:** PostgreSQL 18 with Prisma 7.
 
 ## Current state
 
-Only `app_metadata` (`key`, `value`, `updated_at`) exists, as a foundation table that proves migrations work. The tables below are the approved design for later phases.
+Phase 2A implemented this design in `apps/api/prisma/schema.prisma`, with 57 models: the 56 approved entities plus the `app_metadata` foundation table. No feature code uses them yet.
 
 ## Conventions
 
 | Topic | Rule |
 | --- | --- |
-| Primary keys | UUIDv7, named `id` |
-| Names | `snake_case` in the database, `camelCase` in Prisma through `@map` |
-| Timestamps | `created_at`, and `updated_at` on mutable tables, in UTC (`timestamptz`) |
-| Money | Integer minor units plus an ISO currency code, never floats |
-| Band scores | `NUMERIC(2,1)` with a check for 0 to 9 in steps of 0.5 |
-| Flexible content | JSONB only where the shape varies, validated with Zod in the API |
-| Deletion | Foreign keys to personal data cascade or are cleared by the deletion job. Financial and audit records stay anonymised |
+| Primary keys | UUIDv7 stored as `uuid`, except composite join keys and natural keys such as `platform_settings.key` |
+| Names | `snake_case` tables and columns, `camelCase` in Prisma through `@map` |
+| Timestamps | `timestamptz(3)` in UTC. Calendar dates such as `exam_date` use `date` |
+| Money | Integer minor units plus a three-letter currency code. AI costs use `bigint` micro-USD |
+| Band scores | `numeric(2,1)` with a check for 0 to 9 in half-band steps |
+| JSON | Only for varying shapes: question stimulus and responses, feedback evidence, AI parameters, gateway payloads, snapshots, and settings |
+| Soft deletion | `deleted_at` on `users`, `courses`, `learning_resources`, `exams` and both package tables |
+| Provider data | Model names and prices live in database rows, never in application logic |
 
-## Entity relationships
+## A. User management
 
-### Learning
+| Entity | Purpose |
+| --- | --- |
+| `User` | Account, with a unique lower-case email. `password_hash` is null for Google-only accounts. Status and deletion dates support deletion requests |
+| `UserProfile` | One-to-one personal and study details, including locale, timezone and country |
+| `Role`, `Permission` | Catalogues identified by a unique `code` |
+| `UserRole`, `RolePermission` | Many-to-many joins with composite keys |
+| `UserSession` | A signed-in device |
+| `RefreshToken` | Hashed token linked to a session, with `family_id` and `replaced_by_id` for rotation and reuse detection |
+| `EmailVerificationToken`, `PasswordResetToken` | Hashed, expiring, single-use tokens |
+| `OAuthAccount` | External identity, unique per provider account and per user and provider |
+
+Roles are `STUDENT`, `INSTRUCTOR` (reserved), `MARKER`, `EDITOR`, `ADMIN` and `SUPER_ADMIN`. Only hashes of tokens are stored.
 
 ```mermaid
 erDiagram
-  USER ||--o| STUDENT_PROFILE : has
+  USER ||--o| USER_PROFILE : has
+  USER ||--o{ USER_ROLE : holds
+  ROLE ||--o{ USER_ROLE : grants
+  ROLE ||--o{ ROLE_PERMISSION : includes
+  PERMISSION ||--o{ ROLE_PERMISSION : included_in
+  USER ||--o{ USER_SESSION : opens
+  USER_SESSION ||--o{ REFRESH_TOKEN : issues
+  USER ||--o{ EMAIL_VERIFICATION_TOKEN : requests
+  USER ||--o{ PASSWORD_RESET_TOKEN : requests
   USER ||--o{ OAUTH_ACCOUNT : links
-  USER ||--o{ REFRESH_TOKEN : holds
-  USER ||--o{ AUTH_TOKEN : requests
-  USER ||--o{ ATTEMPT : takes
-  USER ||--o{ WRITING_SUBMISSION : writes
-  USER ||--o{ MOCK_SESSION : sits
-  USER ||--o{ SPEAKING_SESSION : records
-  USER ||--o{ TUTOR_CONVERSATION : opens
-  USER ||--o{ STUDY_PLAN : follows
-
-  PAPER ||--o{ PAPER_SECTION : contains
-  PAPER_SECTION ||--o{ QUESTION_GROUP : contains
-  QUESTION_GROUP ||--o{ QUESTION : contains
-  PAPER ||--o{ ATTEMPT : used_by
-  ATTEMPT ||--o{ ATTEMPT_ANSWER : records
-  QUESTION ||--o{ ATTEMPT_ANSWER : answered_in
-
-  WRITING_PROMPT ||--o{ WRITING_SUBMISSION : answered_by
-  WRITING_SUBMISSION ||--o{ WRITING_ASSESSMENT : assessed_by
-
-  MOCK_EXAM }o--|| PAPER : listening_and_reading
-  MOCK_EXAM }o--o{ WRITING_PROMPT : uses
-  MOCK_EXAM }o--o| SPEAKING_SET : may_use
-  MOCK_EXAM ||--o{ MOCK_SESSION : run_as
-  MOCK_SESSION ||--o{ ATTEMPT : includes
-  MOCK_SESSION ||--o{ WRITING_SUBMISSION : includes
-  MOCK_SESSION ||--o| SPEAKING_SESSION : may_include
-
-  SPEAKING_SET ||--o{ SPEAKING_QUESTION : contains
-  SPEAKING_SET ||--o{ SPEAKING_SESSION : used_by
-  SPEAKING_SESSION ||--o{ SPEAKING_RESPONSE : includes
-  SPEAKING_QUESTION ||--o{ SPEAKING_RESPONSE : answered_by
-  SPEAKING_SESSION ||--o{ SPEAKING_ASSESSMENT : assessed_by
-  SPEAKING_RESPONSE ||--o| PRONUNCIATION_FEEDBACK : has_separate
-
-  TUTOR_CONVERSATION ||--o{ TUTOR_MESSAGE : contains
-  STUDY_PLAN ||--o{ STUDY_PLAN_ITEM : schedules
 ```
 
-`MOCK_EXAM` has separate foreign keys for its Listening and Reading papers and for its two Writing prompts. The diagram groups them for readability.
+## B. Learning system
 
-### Billing, AI and calibration
+| Entity | Purpose |
+| --- | --- |
+| `LearningModule` | Top-level area, seeded with the four skills |
+| `Course`, `CourseSection`, `LearningResource` | Structured content. A null `exam_type` means both Academic and General Training |
+| `UserEnrollment` | One per user and course |
+| `LearningProgress` | One per user and resource |
+| `StudyPlan`, `StudyPlanTask` | One active plan per user, with dated tasks |
+| `UserLearningHistory` | Event log for activity and analytics |
 
 ```mermaid
 erDiagram
-  USER ||--o{ PAYMENT : makes
-  USER ||--o{ ACCESS_PASS : holds
-  USER ||--o{ CREDIT_LEDGER_ENTRY : owns
-  USER ||--o{ USAGE_COUNTER : consumes
-  USER ||--o{ DATA_REQUEST : submits
-  USER ||--o{ AI_USAGE_EVENT : generates
-  REGION ||--o{ PRODUCT_PRICE : prices
-  PRODUCT ||--o{ PRODUCT_PRICE : priced_as
-  PRODUCT_PRICE ||--o{ PAYMENT : charged_at
-  PAYMENT ||--o{ ACCESS_PASS : grants
-  PAYMENT ||--o{ CREDIT_LEDGER_ENTRY : funds
-  COUPON ||--o{ COUPON_REDEMPTION : used_in
-  PAYMENT ||--o| COUPON_REDEMPTION : applies
-
-  AI_JOB ||--o{ AI_USAGE_EVENT : records
-  AI_MODEL_PRICE ||--o{ AI_USAGE_EVENT : costs
-
-  CALIBRATION_DATASET ||--o{ CALIBRATION_DATASET_ITEM : freezes
-  CALIBRATION_SAMPLE ||--o{ CALIBRATION_DATASET_ITEM : included_in
-  CALIBRATION_SAMPLE ||--o{ CALIBRATION_ASSIGNMENT : assigned_by
-  CALIBRATION_ASSIGNMENT ||--o| CALIBRATION_MARK : produces
-  USER ||--o{ CALIBRATION_ASSIGNMENT : marks
-  CALIBRATION_DATASET ||--o{ CALIBRATION_RUN : tested_by
-  CALIBRATION_RUN ||--o{ CALIBRATION_PREDICTION : produces
-  CALIBRATION_SAMPLE ||--o{ CALIBRATION_PREDICTION : predicted_for
-  CALIBRATION_RUN ||--o{ AI_BAND_RELEASE : justifies
-  CALIBRATION_SAMPLE ||--o{ SPEECH_TRIAL_RESULT : tested_in
+  LEARNING_MODULE ||--o{ COURSE : groups
+  COURSE ||--o{ COURSE_SECTION : contains
+  COURSE_SECTION ||--o{ LEARNING_RESOURCE : contains
+  USER ||--o{ USER_ENROLLMENT : joins
+  COURSE ||--o{ USER_ENROLLMENT : has
+  USER ||--o{ LEARNING_PROGRESS : tracks
+  LEARNING_RESOURCE ||--o{ LEARNING_PROGRESS : measured_by
+  USER ||--o{ STUDY_PLAN : follows
+  STUDY_PLAN ||--o{ STUDY_PLAN_TASK : schedules
+  USER ||--o{ USER_LEARNING_HISTORY : records
 ```
 
-`MEDIA_ASSET` and `AUDIT_LOG` are referenced from many tables and left out for clarity.
+## C and D. Examination content and attempts
 
-## Enums
+`Exam` is the stable identity. `ExamVersion` holds the content, and **attempts point to a version, never to an exam**.
 
-```text
-Role               STUDENT, MARKER, EDITOR, ADMIN, SUPER_ADMIN
-TestModule         ACADEMIC, GENERAL_TRAINING
-Skill              LISTENING, READING, WRITING, SPEAKING
-ContentStatus      DRAFT, IN_REVIEW, PUBLISHED, ARCHIVED
-Provenance         ORIGINAL, LICENSED, AI_ASSISTED_REVIEWED
-AttemptMode        PRACTICE, TIMED, MOCK
-AttemptStatus      IN_PROGRESS, SUBMITTED, EXPIRED, ABANDONED
-ProcessingStatus   PENDING, PROCESSING, COMPLETED, FAILED
-WritingTaskType    ACADEMIC_TASK_1, GENERAL_TASK_1, TASK_2
-SpeakingPart       PART_1, PART_2, PART_3
-MockStage          LISTENING, READING, WRITING, SPEAKING, COMPLETED
-ProductType        ASSESSMENT_PACK, PRACTICE_PASS, BUNDLE
-PassStatus         ACTIVE, EXPIRED, REVOKED
-LedgerReason       PURCHASE, RESERVE, CONSUME, RELEASE, EXPIRE, REFUND, ADMIN_GRANT
-PaymentStatus      PENDING, PAID, FAILED, CANCELED, REFUNDED, PARTIALLY_REFUNDED
-AiTier             DEFAULT, COMPLEX, LIGHT
-BandVisibility     HIDDEN, INTERNAL, PUBLIC
-SampleStatus       DRAFT, MARKING, ADJUDICATION, APPROVED, REJECTED, WITHDRAWN
-SampleSplit        TUNING, VALIDATION, TEST
-MarkKind           INDEPENDENT, ADJUDICATION
-DataRequestType    EXPORT, DELETE
-DataRequestStatus  PENDING, CANCELED, PROCESSING, COMPLETED, FAILED
-MediaKind          LISTENING_AUDIO, EXAMINER_AUDIO, SPEAKING_RECORDING, IMAGE, DOCUMENT, DATA_EXPORT, CALIBRATION_AUDIO
-QuestionType       MULTIPLE_CHOICE_SINGLE, MULTIPLE_CHOICE_MULTI, TRUE_FALSE_NOT_GIVEN,
-                   YES_NO_NOT_GIVEN, MATCHING_GENERAL, MATCHING_HEADINGS, MATCHING_INFORMATION,
-                   MATCHING_FEATURES, MATCHING_SENTENCE_ENDINGS, SENTENCE_COMPLETION,
-                   SUMMARY_COMPLETION, NOTE_COMPLETION, TABLE_COMPLETION, FLOW_CHART_COMPLETION,
-                   FORM_COMPLETION, DIAGRAM_LABELLING, PLAN_LABELLING, MAP_LABELLING, SHORT_ANSWER
+| Entity | Purpose |
+| --- | --- |
+| `Exam`, `ExamVersion` | Identity and numbered versions. Exam content is created inside a version, and a new version is a new row |
+| `ExamSection` | Timed part of a version, for one skill |
+| `ReadingPassage`, `ListeningAudio` | Section material. Audio stores a private storage key |
+| `QuestionGroup`, `Question`, `QuestionOption`, `QuestionAnswer` | Questions of every official type. Accepted answers are separate rows |
+| `WritingTask` | Academic Task 1, General Training Task 1 or Task 2 |
+| `SpeakingQuestion` | Parts 1, 2 and 3 |
+| `ExamAttempt`, `SectionAttempt` | Timed session state, with server expiry and last-saved times for resuming |
+| `QuestionResponse` | One row per section attempt and question, so autosave is an upsert |
+| `WritingSubmission`, `SpeakingSubmission` | Student work. Rewrites link to the original, and pronunciation data stays in its own field |
+| `AssessmentResult` | One assessment of exactly one subject, with one current result per subject |
+| `CriterionScore`, `AssessmentFeedback` | Band per criterion, and ordered feedback |
+
+```mermaid
+erDiagram
+  EXAM ||--o{ EXAM_VERSION : versions
+  EXAM_VERSION ||--o{ EXAM_SECTION : contains
+  EXAM_SECTION ||--o{ READING_PASSAGE : uses
+  EXAM_SECTION ||--o{ LISTENING_AUDIO : uses
+  EXAM_SECTION ||--o{ QUESTION_GROUP : contains
+  QUESTION_GROUP ||--o{ QUESTION : contains
+  QUESTION ||--o{ QUESTION_OPTION : offers
+  QUESTION ||--o{ QUESTION_ANSWER : accepts
+  EXAM_SECTION ||--o{ WRITING_TASK : contains
+  EXAM_SECTION ||--o{ SPEAKING_QUESTION : contains
+  USER ||--o{ EXAM_ATTEMPT : takes
+  EXAM_VERSION ||--o{ EXAM_ATTEMPT : used_by
+  EXAM_ATTEMPT ||--o{ SECTION_ATTEMPT : includes
+  EXAM_SECTION ||--o{ SECTION_ATTEMPT : attempted_in
+  SECTION_ATTEMPT ||--o{ QUESTION_RESPONSE : records
+  QUESTION ||--o{ QUESTION_RESPONSE : answered_in
+  SECTION_ATTEMPT ||--o{ WRITING_SUBMISSION : includes
+  WRITING_TASK ||--o{ WRITING_SUBMISSION : answered_by
+  SECTION_ATTEMPT ||--o{ SPEAKING_SUBMISSION : includes
+  SPEAKING_QUESTION ||--o{ SPEAKING_SUBMISSION : answered_by
+  WRITING_SUBMISSION ||--o{ ASSESSMENT_RESULT : assessed_by
+  SPEAKING_SUBMISSION ||--o{ ASSESSMENT_RESULT : assessed_by
+  SECTION_ATTEMPT ||--o{ ASSESSMENT_RESULT : assessed_by
+  ASSESSMENT_RESULT ||--o{ CRITERION_SCORE : scores
+  ASSESSMENT_RESULT ||--o{ ASSESSMENT_FEEDBACK : explains
 ```
 
-Publish validation rejects `YES_NO_NOT_GIVEN` and `MATCHING_SENTENCE_ENDINGS` in General Training Reading, as the official format doesn't include them.
+### Published content protection
 
-## Identity and regions
+Database triggers enforce this, so application bugs and manual SQL can't bypass it:
 
-**users:** `id`, `email` (unique, lower-case), `password_hash` (null for Google-only accounts), `first_name`, `last_name`, `avatar_asset_id`, `role`, `country_code`, `locale`, `timezone`, `region_id`, `email_verified_at`, `is_suspended`, `last_login_at`, `deleted_at`, timestamps.
+- After publication, a version and all its sections, material, questions, options, answers, tasks and speaking questions can't be inserted, updated or deleted.
+- The only allowed change to a published version is archiving it.
+- Attempts can begin only on a version with `PUBLISHED` status.
+- Foreign keys from attempts and responses to content use `RESTRICT`.
+- Each exam has at most one published version, and each student at most one in-progress attempt per version.
 
-**student_profiles:** `user_id` (primary key), `test_module`, `target_band`, `exam_date`, `current_level_estimate`, `study_hours_per_week`, `notification_prefs` (JSONB), `onboarded_at`.
+## E. AI assessment infrastructure
 
-**oauth_accounts:** `id`, `user_id`, `provider`, `provider_account_id`. Unique on (`provider`, `provider_account_id`).
+| Entity | Purpose |
+| --- | --- |
+| `AIModelConfiguration` | Provider, model, tier, effort, parameters, prices and band visibility per task. One active row per task and tier |
+| `AIPromptVersion` | Numbered prompt and rubric versions, one active per task |
+| `AIAssessmentJob` | Job state, with a unique idempotency key |
+| `AIUsageLog` | One row per provider call, with tokens, calculated cost, latency and outcome. Provider and model are stored as text, so history survives configuration changes |
+| `AssessmentCalibrationRecord` | One human mark, adjudication or AI prediction for a de-identified sample in a dataset version and split |
 
-**refresh_tokens:** `id`, `user_id`, `family_id`, `token_hash` (unique), `expires_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `ip_address`, `created_at`.
+**Band gate:** `band_visibility` defaults to `HIDDEN`. A check constraint rejects `PUBLIC` unless `calibration_validated_at` and both instructor and owner approvals are recorded. Each `AssessmentResult` keeps its own visibility and model snapshot.
 
-**auth_tokens:** `id`, `user_id`, `purpose` (`EMAIL_VERIFY`, `PASSWORD_RESET`), `token_hash` (unique), `expires_at`, `used_at`.
+**Calibration:** one marker can record one mark per sample and dataset, which supports independent double marking. Each model and prompt combination can record one prediction per sample and dataset.
 
-**regions:** `id`, `code` (unique, such as `BD`), `name`, `default_currency`, `default_locale`, `enabled_gateways` (text array), `tax_settings` (JSONB), `legal_settings` (JSONB), `is_active`, timestamps. One row with no country acts as the international default.
+**Speaking:** a `PRONUNCIATION` criterion exists for possible future use, but pronunciation feedback is stored separately and no complete band is allowed until all four criteria are validated. This rule belongs to the application layer in Release 2.
 
-## Content
-
-**media_assets:** `id`, `kind`, `bucket`, `object_key` (unique with bucket), `mime_type`, `size_bytes`, `duration_seconds`, `owner_user_id`, `upload_confirmed_at`, `delete_after`, `created_at`.
-
-**papers:** `id`, `skill` (`LISTENING` or `READING`), `test_module` (null for Listening, which is shared), `title`, `slug` (unique), `difficulty`, `duration_seconds`, `status`, `provenance`, `source_note`, `is_premium`, `is_free_sample`, `band_table_version`, `version`, `parent_paper_id`, `created_by_id`, `reviewed_by_id`, `published_at`, timestamps.
-
-**paper_sections:** `id`, `paper_id`, `position`, `title`, `instructions`, `passage_html` (Reading), `audio_asset_id` and `transcript` (Listening). Unique on (`paper_id`, `position`).
-
-**question_groups:** `id`, `section_id`, `position`, `type`, `instructions`, `stimulus` (JSONB), `image_asset_id`.
-
-**questions:** `id`, `group_id`, `number` (1 to 40 in the paper), `prompt`, `options` (JSONB), `answer_key` (JSONB), `explanation`, `tags` (text array).
-
-```json
-{ "accepted": ["library", "the library"], "caseSensitive": false, "maxWords": 2 }
+```mermaid
+erDiagram
+  AI_MODEL_CONFIGURATION ||--o{ AI_ASSESSMENT_JOB : routes
+  AI_PROMPT_VERSION ||--o{ AI_ASSESSMENT_JOB : used_by
+  AI_ASSESSMENT_JOB ||--o{ AI_USAGE_LOG : records
+  AI_ASSESSMENT_JOB ||--o{ ASSESSMENT_RESULT : produces
+  AI_MODEL_CONFIGURATION ||--o{ ASSESSMENT_RESULT : scored_by
+  AI_MODEL_CONFIGURATION ||--o{ ASSESSMENT_CALIBRATION_RECORD : predicts
+  AI_PROMPT_VERSION ||--o{ ASSESSMENT_CALIBRATION_RECORD : tested_in
+  USER ||--o{ ASSESSMENT_CALIBRATION_RECORD : marks
 ```
 
-**writing_prompts:** `id`, `task_type`, `title`, `prompt_text`, `image_asset_id`, `min_words`, `suggested_minutes`, `topic`, `sample_answer`, `status`, `provenance`, `source_note`, `is_premium`, `created_by_id`, `reviewed_by_id`, `published_at`, timestamps.
+## F. Payments and packages
 
-**speaking_sets (R2):** `id`, `title`, `topic`, `status`, `provenance`, `source_note`, `is_premium`, `created_by_id`, `reviewed_by_id`, `published_at`, timestamps.
+| Entity | Purpose |
+| --- | --- |
+| `PracticePackage` | Time-limited pass, priced per region and currency |
+| `AssessmentPackage` | Credit pack for one skill, priced per region and currency |
+| `PaymentGateway` | Provider catalogue with regions and currencies. Secrets stay in the environment |
+| `UserPurchase` | An order for exactly one package, with price and package copied at purchase |
+| `PaymentTransaction` | A gateway attempt, unique on tracking ID, idempotency key, and gateway plus gateway transaction ID |
+| `UserEntitlement` | Pass dates or credits granted, used and reserved. A check prevents overspending |
+| `RefundRecord` | A refund against a transaction |
 
-**speaking_questions (R2):** `id`, `set_id`, `part`, `position`, `text`, `cue_card` (JSONB), `prep_seconds`, `max_answer_seconds`, `examiner_audio_asset_id`.
+Financial records use `RESTRICT`, so they can't be deleted with a user. User accounts with purchases are anonymised rather than removed. There are no subscription tables.
 
-**Published content doesn't change.** Editing creates a new row with `parent_paper_id` and a higher `version`, so past attempts still show what the student saw. The author and reviewer must be different people.
+```mermaid
+erDiagram
+  USER ||--o{ USER_PURCHASE : makes
+  PRACTICE_PACKAGE ||--o{ USER_PURCHASE : sold_as
+  ASSESSMENT_PACKAGE ||--o{ USER_PURCHASE : sold_as
+  USER_PURCHASE ||--o{ PAYMENT_TRANSACTION : paid_by
+  PAYMENT_GATEWAY ||--o{ PAYMENT_TRANSACTION : processes
+  USER_PURCHASE ||--o{ USER_ENTITLEMENT : grants
+  USER ||--o{ USER_ENTITLEMENT : holds
+  PAYMENT_TRANSACTION ||--o{ REFUND_RECORD : refunded_by
+  USER_PURCHASE ||--o{ REFUND_RECORD : adjusted_by
+```
 
-## Attempts and writing
+## G. Platform administration
 
-**attempts:** `id`, `user_id`, `paper_id`, `mock_session_id`, `mode`, `status`, `started_at`, `expires_at`, `submitted_at`, `raw_score`, `band_score`, `band_table_version`, `time_spent_seconds`, timestamps.
+| Entity | Purpose |
+| --- | --- |
+| `AuditLog` | Who changed what, with before and after values |
+| `Notification`, `UserNotification` | A message, and each recipient's read state |
+| `PlatformSetting` | Keyed JSON configuration, including retention periods and regional defaults |
+| `ContentPublicationHistory` | Publication actions on exam versions and courses |
 
-**attempt_answers:** `id`, `attempt_id`, `question_id`, `response` (JSONB), `is_correct`, `is_flagged`, `answered_at`. Unique on (`attempt_id`, `question_id`).
+## Indexing strategy
 
-**writing_submissions:** `id`, `user_id`, `prompt_id`, `mock_session_id`, `parent_submission_id`, `text`, `word_count`, `time_spent_seconds`, `status`, `submitted_at`, timestamps.
+- Every foreign key used for lookups has an index, or leads a unique index.
+- History screens use `(user_id, created_at DESC)` style indexes.
+- Worker scans use status plus time, such as `(status, queued_at)` and `(status, expires_at)`.
+- Cost reports use `created_at`, `(task_key, created_at)` and `(user_id, created_at)` on `ai_usage_logs`.
+- Cleanup jobs use expiry columns on tokens, sessions and recordings.
 
-**writing_assessments:** `id`, `submission_id`, `ai_job_id`, `task_response_band`, `coherence_cohesion_band`, `lexical_resource_band`, `grammar_band`, `overall_band`, `feedback` (JSONB), `task_name`, `provider`, `model_id`, `prompt_version`, `rubric_version`, `band_release_id` (null means no public release applied), `review_status`, `reviewer_id`, `reviewer_note`, `is_current`, `created_at`.
+### Rules added by hand
 
-Band values are stored but returned only according to `band_release_id` and role. `task_response_band` holds Task Achievement for Task 1.
+Prisma's schema can't express these, so they're SQL in the Phase 2A migration. A later `prisma migrate dev` won't remove them, and a test confirms that no schema difference remains.
 
-## Mock exams
+| Type | Rule |
+| --- | --- |
+| Partial unique index | One in-progress attempt, published version, active study plan, active AI configuration per task and tier, active prompt per task, and current assessment per subject |
+| Partial unique index | One calibration mark per marker, and one prediction per model and prompt, per sample and dataset |
+| Check | Lower-case emails, valid bands, non-negative money, exactly one package per purchase, exactly one subject per assessment, credit limits, and the band gate |
+| Trigger | Published content protection and published-only attempts |
 
-**mock_exams:** `id`, `title`, `test_module`, `listening_paper_id`, `reading_paper_id`, `writing_task1_prompt_id`, `writing_task2_prompt_id`, `speaking_set_id` (null in Release 1), `status`, `is_premium`, timestamps.
+## Seed data
 
-**mock_sessions:** `id`, `user_id`, `mock_exam_id`, `stage`, `listening_band`, `reading_band`, `writing_band`, `speaking_band`, `overall_band` (null unless all four skills exist and are releasable), `started_at`, `completed_at`, timestamps.
+`npm run db:seed` is repeatable. It creates 6 roles, 18 permissions and their mappings, 4 learning modules, 6 platform settings, 1 disabled SSLCommerz gateway, and up to 3 inactive AI configurations from `AI_PROVIDER` and the `AI_MODEL_*` variables, with bands hidden. Later edits to settings, gateways and AI rows are kept. **It creates no user accounts and no package prices.**
 
-## Speaking (R2)
+## Differences from the Phase 0 design
 
-**speaking_sessions:** `id`, `user_id`, `set_id`, `mock_session_id`, `status`, `started_at`, `completed_at`, timestamps.
+The approved Phase 2A entity list replaces parts of the earlier design:
 
-**speaking_responses:** `id`, `session_id`, `question_id`, `audio_asset_id`, `duration_seconds`, `transcript`, `word_timings` (JSONB), `fluency_metrics` (JSONB), `status`. Unique on (`session_id`, `question_id`).
-
-**pronunciation_feedback:** `id`, `response_id` (unique), `speech_provider`, `provider_version`, `language`, `measures` (JSONB), `feedback` (JSONB), `created_at`. Nothing reads this table when calculating a band.
-
-**speaking_assessments:** `id`, `session_id`, `ai_job_id`, `fluency_coherence_band`, `lexical_resource_band`, `grammar_band`, `pronunciation_band` (stays null until a validated method exists), `complete_band` (stays null until all four criteria are validated), `criteria_covered`, `feedback` (JSONB), `task_name`, `provider`, `model_id`, `prompt_version`, `rubric_version`, `band_release_id`, `review_status`, `reviewer_id`, `reviewer_note`, `is_current`, `created_at`.
-
-**speech_trial_results:** `id`, `sample_id`, `speech_provider`, `provider_version`, `language`, `transcript`, `transcript_accuracy`, `measures` (JSONB), `instructor_notes`, `created_at`. It supports the Azure trial and can be populated before the student feature exists, so it's created in Release 1.
-
-## AI operations
-
-**ai_task_routes:** `task` (primary key), `tier`, `provider_override`, `model_override`, `effort`, `is_enabled`, `updated_by_id`, `updated_at`. Defaults live in code, and a row overrides them.
-
-**ai_jobs:** `id`, `user_id`, `task_name`, `status`, `subject_type`, `subject_id`, `attempts`, `error_code`, `error_message`, `queued_at`, `started_at`, `finished_at`.
-
-**ai_usage_events:** `id`, `user_id`, `ai_job_id`, `calibration_run_id`, `task_name`, `tier`, `provider`, `model_id`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `is_batch`, `cost_microusd`, `price_id`, `latency_ms`, `outcome`, `created_at`. One row per provider call.
-
-**ai_model_prices:** `id`, `provider`, `model_id`, `input_microusd_per_mtok`, `output_microusd_per_mtok`, `cache_read_microusd_per_mtok`, `cache_write_microusd_per_mtok`, `batch_multiplier`, `effective_from`, `effective_to`. Costs are stored at write time.
-
-**tutor_conversations (R2):** `id`, `user_id`, `title`, `archived_at`, timestamps.
-
-**tutor_messages (R2):** `id`, `conversation_id`, `sequence`, `role`, `content` (JSONB: raw content blocks), `model_id`, `created_at`. Unique on (`conversation_id`, `sequence`). Rows are never edited.
-
-## Calibration and band release
-
-**calibration_samples:** `id`, `reference_code` (unique), `skill`, `task_type`, `prompt_snapshot`, `writing_prompt_id`, `response_text`, `audio_asset_id`, `transcript`, `test_module`, `learner_level`, `first_language`, `region`, `accent_notes`, `is_adversarial`, `split`, `status`, `consent_version`, `consent_recorded_at`, `adult_or_guardian_consent`, `deidentified_at`, `provenance`, `created_by_id`, timestamps.
-
-No names or contact details are stored here. The signed consent stays outside the application, or in a restricted document, linked by `reference_code`.
-
-**calibration_assignments:** `id`, `sample_id`, `marker_id`, `kind`, `due_at`, `completed_at`. Unique on (`sample_id`, `marker_id`, `kind`).
-
-**calibration_marks:** `id`, `assignment_id` (unique), `criterion_bands` (JSONB), `overall_band`, `rubric_version`, `notes`, `created_at`. Markers can't read each other's marks until their own is submitted, or the AI's result at any point.
-
-**calibration_datasets:** `id`, `skill`, `version`, `status`, `frozen_at`, `approved_by_id`, `notes`. Unique on (`skill`, `version`). Frozen datasets don't change.
-
-**calibration_dataset_items:** `dataset_id`, `sample_id` (composite primary key), `split`, `reference_bands` (JSONB, final human result).
-
-**calibration_runs:** `id`, `dataset_id`, `split`, `task_name`, `provider`, `model_id`, `effort`, `prompt_version`, `rubric_version`, `status`, `metrics` (JSONB), `thresholds` (JSONB), `passed`, `created_by_id`, `started_at`, `finished_at`. Cost comes from `ai_usage_events`.
-
-**calibration_predictions:** `id`, `run_id`, `sample_id`, `predicted_bands` (JSONB), `raw_output` (JSONB), `error_summary` (JSONB). Unique on (`run_id`, `sample_id`).
-
-**ai_band_releases:** `id`, `skill`, `task_name`, `provider`, `model_id`, `prompt_version`, `rubric_version`, `visibility`, `calibration_run_id` (required for `PUBLIC`), `instructor_signoff_by`, `owner_signoff_by`, `opened_at`, `closed_at`, `closed_reason`. A partial unique index allows one open release per (`skill`, `task_name`).
-
-A database check rejects `PUBLIC` without a calibration run and both sign-offs, and formal runs need samples marked by two independent markers. The API also verifies that the run passed on the test split.
-
-## Billing
-
-**products:** `id`, `code` (unique), `type`, `name`, `description`, `grants` (JSONB: credits by feature, pass days, flags), `is_active`, `position`, timestamps.
-
-**product_prices:** `id`, `product_id`, `region_id`, `currency`, `amount_minor`, `is_active`, timestamps.
-
-**payments:** `id`, `user_id`, `product_price_id`, `coupon_id`, `gateway`, `gateway_transaction_id`, `gateway_validation_id`, `tracking_id` (unique), `amount_minor`, `discount_minor`, `currency`, `product_snapshot` (JSONB), `status`, `raw_response` (JSONB), `paid_at`, timestamps. Unique on (`gateway`, `gateway_transaction_id`).
-
-**payment_events:** `id`, `gateway`, `event_key`, `payload` (JSONB), `processed_at`, `created_at`. Unique on (`gateway`, `event_key`).
-
-**access_passes:** `id`, `user_id`, `product_id`, `payment_id`, `status`, `starts_at`, `ends_at`, `granted_by_id`, timestamps. A renewal starts when the current pass ends, so early purchase loses no days.
-
-**credit_ledger_entries:** `id`, `user_id`, `feature`, `delta`, `reason`, `payment_id`, `subject_type`, `subject_id`, `expires_at`, `idempotency_key` (unique), `created_at`. Insert-only. The balance is the sum of entries, and the row lock on the user keeps concurrent spending safe.
-
-**usage_counters:** `user_id`, `feature`, `period_start` (composite primary key), `used`, `updated_at`. For free allowances.
-
-**coupons:** `id`, `code` (unique), `discount_type`, `discount_value`, `currency`, `max_redemptions`, `per_user_limit`, `starts_at`, `ends_at`, `is_active`.
-
-**coupon_redemptions:** `id`, `coupon_id`, `user_id`, `payment_id` (unique), `created_at`.
-
-## Privacy, administration and CMS
-
-**retention_policies:** `data_type` (primary key), `retain_days` (null means keep), `action` (`DELETE`, `ANONYMISE`), `is_enabled`, `updated_by_id`, `updated_at`.
-
-**data_requests:** `id`, `user_id`, `type`, `status`, `requested_at`, `cancel_until`, `processed_at`, `export_asset_id`, `failure_reason`, `processed_by_id`. A completed deletion keeps this row without personal details, as evidence.
-
-**audit_logs:** `id`, `actor_id`, `action`, `entity_type`, `entity_id`, `before` (JSONB), `after` (JSONB), `ip_address`, `created_at`. Insert-only.
-
-**notifications:** `id`, `user_id`, `type`, `title`, `body`, `link`, `read_at`, `created_at`.
-
-**blog_posts:** `id`, `slug` (unique), `locale`, `title`, `excerpt`, `body_html`, `cover_asset_id`, `author_id`, `seo_title`, `seo_description`, `status`, `published_at`, timestamps.
-
-**faqs:** `id`, `locale`, `question`, `answer`, `category`, `position`, `is_published`.
-
-**contact_messages:** `id`, `name`, `email`, `subject`, `message`, `handled_at`, `created_at`.
-
-## Analytics and planner
-
-**daily_activity:** `user_id`, `activity_date` (composite primary key), `minutes_studied`, `questions_answered`, `questions_correct`, `writing_count`, `speaking_count`.
-
-**question_type_stats (R2):** `user_id`, `skill`, `question_type` (composite primary key), `attempted`, `correct`, `updated_at`.
-
-**study_plans (R2):** `id`, `user_id`, `ai_job_id`, `target_band`, `exam_date`, `starts_on`, `ends_on`, `summary`, `is_active`, timestamps.
-
-**study_plan_items (R2):** `id`, `plan_id`, `scheduled_date`, `skill`, `title`, `description`, `estimated_minutes`, `linked_type`, `linked_id`, `completed_at`.
-
-## Key indexes and constraints
-
-| Table | Index or constraint | Purpose |
-| --- | --- | --- |
-| `attempts` | (`user_id`, `created_at` DESC) | History |
-| `attempts` | Partial unique (`user_id`, `paper_id`) where `status = 'IN_PROGRESS'` | One active attempt per paper |
-| `papers` | (`skill`, `status`, `test_module`) | Library filters |
-| `writing_submissions` | (`user_id`, `created_at` DESC) | History |
-| `writing_assessments` | Partial unique `submission_id` where `is_current` | One current assessment |
-| `speaking_assessments` | Partial unique `session_id` where `is_current` | One current assessment |
-| `ai_jobs` | (`status`, `queued_at`) | Monitoring |
-| `ai_usage_events` | (`created_at`), (`task_name`, `created_at`), (`user_id`, `created_at`) | Cost reports |
-| `ai_band_releases` | Partial unique (`skill`, `task_name`) where `closed_at IS NULL` | One open release |
-| `access_passes` | (`user_id`, `status`, `ends_at`) | Entitlement checks |
-| `credit_ledger_entries` | (`user_id`, `feature`, `created_at`) | Balance |
-| `product_prices` | Partial unique (`product_id`, `region_id`, `currency`) where `is_active` | One live price |
-| `calibration_assignments` | (`marker_id`, `completed_at`) | Marking queue |
-| `data_requests` | (`status`, `cancel_until`) | Processing |
-| `media_assets` | (`delete_after`) | Retention job |
-| `study_plans` | Partial unique `user_id` where `is_active` | One active plan |
-
-Partial unique indexes and check constraints go in hand-edited SQL migrations, because Prisma's schema doesn't express them.
+| Earlier table | Now |
+| --- | --- |
+| `ai_band_releases` | Band visibility and approvals on `AIModelConfiguration` |
+| Calibration samples, assignments, marks, datasets, runs, predictions | `AssessmentCalibrationRecord` |
+| `ai_task_routes`, `ai_model_prices` | `AIModelConfiguration`. Price changes need a new row or historic cost stored on `AIUsageLog` |
+| `credit_ledger_entries`, `access_passes` | `UserEntitlement` |
+| `regions`, `retention_policies` | `PlatformSetting` |
+| `data_requests` | Deletion dates on `User`. Export requests are undecided |
+| `coupons`, blog, FAQ and contact tables | Not implemented in this phase |
 
 ## Scoring reference data
 
-Conversion tables live in `packages/shared/src/scoring`, versioned, with the version recorded on papers and attempts.
+Conversion tables live in `packages/shared/src/scoring`, versioned, with the version recorded on exam versions and attempts.
 
 **Official information:** IELTS publishes only these average points and says exact marks vary by test version ([source](https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail)):
 
@@ -345,17 +265,13 @@ Conversion tables live in `packages/shared/src/scoring`, versioned, with the ver
 
 ## Retention
 
-Seed values for `retention_policies`, adjustable by admins. Confirm them against the law in each market.
+Starting values are in `platform_settings` and can be changed without a code change. Confirm them against the law in each market.
 
-| Data type | Starting value | Action |
-| --- | --- | --- |
-| Speaking recordings | 90 days | Delete, transcripts and reports stay |
-| Expired authentication tokens | 7 days after expiry | Delete |
-| Data exports | 7 days | Delete |
-| Contact messages | 365 days | Delete |
-| AI job errors | 180 days | Clear details |
-| Inactive accounts | Off | Decide per market |
-| Payments | Per accounting law | Anonymise, never delete early |
-| Calibration samples | Until consent ends or dataset retires | Delete where consent is withdrawn before freezing |
+| Setting | Starting value |
+| --- | --- |
+| `retention.speaking_recordings_days` | 90 days. Transcripts and reports stay |
+| `retention.expired_tokens_days` | 7 days after expiry |
+| `retention.data_exports_days` | 7 days |
+| `privacy.deletion_cancel_window_days` | 14 days |
 
-Backups are daily and kept for 30 days, with a tested restore.
+Backups are daily and kept for 30 days, with a tested restore. Payments stay anonymised as accounting law requires.
