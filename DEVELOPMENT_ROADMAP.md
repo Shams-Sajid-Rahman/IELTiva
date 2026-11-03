@@ -87,14 +87,18 @@ Student and admin dashboards, user and role management, course and module manage
 
 **Done when:** backend, component and browser tests pass, and the owner approves.
 
-### Phase 4: IELTS practice engine, Listening and Reading (3 weeks)
+### Phase 4: IELTS practice engine
 
-- Private storage and presigned URLs
-- Paper authoring with provenance, review and versioning, and validation against verified formats
-- Exam player with server timer, autosave, resume and audio
-- Marking, band conversion, review page and basic progress view
+- Listening, Reading, Writing and Speaking engines, plus full mock tests with configurable rules. Mock tests and Speaking recording moved here from Phases 6 and 9 at the owner's request
+- Server-controlled timers, autosave, resume, and duplicate-safe submission
+- Deterministic marking with raw scores only. No band conversion, because no verified table exists
+- Writing drafts and submissions, with hidden assessment records prepared for Phase 5
+- Exam authoring with provenance, validation, preview and immutable published versions
+- Private files, streamed through the API after an access check
 
 **Done when:** a student can complete a timed paper, survive a refresh and disconnection, and get correct results. Tests prove keys never reach the client before submission, and late answers are rejected.
+
+**Still open:** production file storage needs the Cloudflare R2 provider, and real Listening recordings are needed from the content team.
 
 ### Phase 5: AI service and Writing Assessment (2 to 3 weeks)
 
@@ -109,7 +113,10 @@ Student and admin dashboards, user and role management, course and module manage
 
 **This phase doesn't wait for calibration results.** It finishes with bands hidden.
 
-### Phase 6: Basic mock tests (1 week)
+### Phase 6: Mock test refinement (1 week)
+
+The mock test engine was built in Phase 4. What remains is real full-length content and any changes the instructor asks for.
+
 
 - Mock builder, staged Listening, Reading and Writing flow, combined report
 
@@ -135,7 +142,7 @@ Student and admin dashboards, user and role management, course and module manage
 
 | Phase | Scope | Rough duration | Done when |
 | --- | --- | --- | --- |
-| 9 | Speaking recording, upload, speech provider, transcripts and separate pronunciation feedback | 3 weeks | Works on desktop and mobile Chrome and Safari, failed uploads can be retried, and no band calculation reads pronunciation data |
+| 9 | Speech provider, transcripts and separate pronunciation feedback. Recording and upload were built in Phase 4 | 3 weeks | Works on desktop and mobile Chrome and Safari, failed uploads can be retried, and no band calculation reads pronunciation data |
 | 10 | Three-criterion Speaking feedback, calibration runs, then Speaking in mocks | 2 weeks | No complete Speaking band appears until all four criteria are validated |
 | 11 | AI IELTS Tutor with streaming and read-only tools | 1 to 2 weeks | Replies stream reliably and one student can't reach another's data |
 | 12 | Personalized study plans | 1 week | Plans respect exam date and available hours |

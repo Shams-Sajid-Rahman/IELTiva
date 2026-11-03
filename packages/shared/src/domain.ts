@@ -42,7 +42,7 @@ export type SpeakingPart = (typeof speakingParts)[number];
 export const attemptModes = ["PRACTICE", "TIMED", "MOCK"] as const;
 export type AttemptMode = (typeof attemptModes)[number];
 
-export const attemptStatuses = ["IN_PROGRESS", "SUBMITTED", "EXPIRED", "ABANDONED"] as const;
+export const attemptStatuses = ["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "EXPIRED", "ABANDONED"] as const;
 export type AttemptStatus = (typeof attemptStatuses)[number];
 
 export const processingStatuses = ["PENDING", "PROCESSING", "COMPLETED", "FAILED"] as const;

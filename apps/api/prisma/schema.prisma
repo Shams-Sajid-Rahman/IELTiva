@@ -118,7 +118,13 @@ enum AttemptMode {
   MOCK
 }
 
+enum ScoringMode {
+  ALL_OR_NOTHING
+  PER_ITEM
+}
+
 enum AttemptStatus {
+  NOT_STARTED
   IN_PROGRESS
   SUBMITTED
   EXPIRED
@@ -688,6 +694,7 @@ model ExamVersion {
   provenance       ContentProvenance @default(ORIGINAL)
   sourceNote       String?           @map("source_note")
   bandTableVersion String?           @map("band_table_version")
+  settings         Json              @default("{}")
   createdById      String?           @map("created_by_id") @db.Uuid
   reviewedById     String?           @map("reviewed_by_id") @db.Uuid
   publishedAt      DateTime?         @map("published_at") @db.Timestamptz(3)
@@ -717,6 +724,7 @@ model ExamSection {
   title           String
   instructions    String?
   durationSeconds Int      @map("duration_seconds")
+  settings        Json     @default("{}")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -783,14 +791,15 @@ model QuestionGroup {
 }
 
 model Question {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  groupId     String   @map("group_id") @db.Uuid
+  id          String      @id @default(uuid(7)) @db.Uuid
+  groupId     String      @map("group_id") @db.Uuid
   number      Int
   prompt      String?
   explanation String?
-  marks       Int      @default(1)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  marks       Int         @default(1)
+  scoringMode ScoringMode @default(ALL_OR_NOTHING) @map("scoring_mode")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   group     QuestionGroup      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   options   QuestionOption[]
@@ -818,13 +827,14 @@ model QuestionOption {
 }
 
 model QuestionAnswer {
-  id            String   @id @default(uuid(7)) @db.Uuid
-  questionId    String   @map("question_id") @db.Uuid
-  acceptedValue String   @map("accepted_value")
-  caseSensitive Boolean  @default(false) @map("case_sensitive")
-  maxWords      Int?     @map("max_words")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                String   @id @default(uuid(7)) @db.Uuid
+  questionId        String   @map("question_id") @db.Uuid
+  acceptedValue     String   @map("accepted_value")
+  caseSensitive     Boolean  @default(false) @map("case_sensitive")
+  maxWords          Int?     @map("max_words")
+  ignorePunctuation Boolean  @default(true) @map("ignore_punctuation")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
@@ -880,6 +890,8 @@ model ExamAttempt {
   mode             AttemptMode
   status           AttemptStatus @default(IN_PROGRESS)
   bandTableVersion String?       @map("band_table_version")
+  rawScore         Int?          @map("raw_score")
+  maxScore         Int?          @map("max_score")
   overallBand      Decimal?      @map("overall_band") @db.Decimal(2, 1)
   startedAt        DateTime      @default(now()) @map("started_at") @db.Timestamptz(3)
   expiresAt        DateTime?     @map("expires_at") @db.Timestamptz(3)
@@ -908,6 +920,8 @@ model SectionAttempt {
   submittedAt      DateTime?     @map("submitted_at") @db.Timestamptz(3)
   timeSpentSeconds Int           @default(0) @map("time_spent_seconds")
   rawScore         Int?          @map("raw_score")
+  maxScore         Int?          @map("max_score")
+  audioPlays       Json          @default("{}") @map("audio_plays")
   bandScore        Decimal?      @map("band_score") @db.Decimal(2, 1)
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -930,6 +944,7 @@ model QuestionResponse {
   questionId       String    @map("question_id") @db.Uuid
   response         Json?
   isCorrect        Boolean?  @map("is_correct")
+  marksAwarded     Int?      @map("marks_awarded")
   isFlagged        Boolean   @default(false) @map("is_flagged")
   answeredAt       DateTime? @map("answered_at") @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)

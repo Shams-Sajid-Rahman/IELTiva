@@ -1,6 +1,7 @@
 import express, { Router, type RequestHandler } from "express";
 import { createPlatformControllers, type PlatformServices } from "../controllers/platform.controllers.js";
 import { requireAnyPermission, requirePermission } from "../middleware/authenticate.js";
+import { createExamRouter } from "./exam.routes.js";
 
 /** Every route needs a signed-in user. Permissions are enforced here, and ownership inside each service. */
 export function createPlatformRouter(services: PlatformServices, authenticateUser: RequestHandler) {
@@ -14,6 +15,8 @@ export function createPlatformRouter(services: PlatformServices, authenticateUse
     res.setHeader("Cache-Control", "no-store");
     next();
   });
+
+  r.use(createExamRouter(services));
 
   r.get("/dashboard/student", c.dashboard.student!);
   r.get("/dashboard/admin", can("dashboard.admin"), c.dashboard.admin!);

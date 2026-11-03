@@ -278,6 +278,61 @@ These are in-app only. No email or push delivery exists for them.
 | GET | `/public/free-test` | Public | Sample test |
 | POST | `/public/free-test/score` | Public | Mark sample answers |
 
+## Practice engine (built)
+
+Every route needs a signed-in user. Student routes need `attempts.own`. Someone else's attempt returns 404. Files are streamed through the API after an access check, so no storage address is ever returned.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/exams` | Published exams. Filters: `search`, `examType`, `skill`, `isMock` |
+| GET | `/exams/:examId` | Summary with no questions |
+| POST | `/exams/:examId/attempts` | Start, or return the active attempt. Body: `{ "mode": "TIMED" }` or `PRACTICE`. Mock exams always use `MOCK` |
+| GET | `/attempts` | History. Filter: `status` |
+| GET | `/attempts/:attemptId` | State, section statuses and server time |
+| POST | `/attempts/:attemptId/submit` | Submit everything. Safe to repeat |
+| POST | `/attempts/:attemptId/cancel` | Cancel a practice or timed attempt |
+| GET | `/attempts/:attemptId/result` | Raw scores, and review if allowed. Only after the attempt closes |
+| POST | `/attempts/:attemptId/sections/:sectionId/start` | Start the section's timer. Repeating it keeps the same deadline |
+| GET | `/attempts/:attemptId/sections/:sectionId` | Content and saved work. Never includes keys, explanations or transcripts |
+| PUT | `/attempts/:attemptId/sections/:sectionId/answers` | Batch autosave, limited to 120 per minute per attempt |
+| POST | `/attempts/:attemptId/sections/:sectionId/submit` | Finish one section. Safe to repeat |
+| POST | `.../sections/:sectionId/audio/:audioId/play` | Count a play, enforcing the limit |
+| GET | `.../sections/:sectionId/audio/:audioId` | Stream audio, after a play has been counted |
+| GET | `.../sections/:sectionId/groups/:itemId/image`, `.../tasks/:itemId/image` | Stream a private image |
+| PUT | `.../sections/:sectionId/writing/:taskId` | Save a writing draft |
+| GET, DELETE | `/writing/submissions`, `/writing/submissions/:id` | Writing history. Filter: `status=draft` or `submitted`. Delete discards a draft only |
+| PUT, GET, DELETE | `.../sections/:sectionId/speaking/:questionId/recording` | Upload (raw audio, `?durationSeconds=`), play back or remove a recording, up to 25 MB |
+| GET | `/speaking/submissions` | Speaking history |
+
+**Responses:** `{ "text": "library" }` for typed answers, or `{ "selected": ["A", "C"] }` using option labels.
+
+**Errors:** `ATTEMPT_ALREADY_SUBMITTED` (409) and `ATTEMPT_EXPIRED` (410) mean the work is closed. Saved work is kept and marked.
+
+**Scores:** raw marks only. `overallBand` and `bandScore` stay empty until a verified, versioned table exists. Writing and Speaking have no score until Phase 5 validation.
+
+### Exam administration
+
+Needs `content.write`. Publishing, archiving and removing an exam need `content.publish`. Changes to a published version return 409, and the database enforces this too.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET, POST | `/admin/exams` | List and create. Creating also makes draft version 1 |
+| GET, PATCH, DELETE | `/admin/exams/:id` | Read, update, hide |
+| POST | `/admin/exams/:id/versions` | Copy the newest published version into a new draft |
+| GET, PATCH | `/admin/exam-versions/:id` | Full tree including keys, and settings: `navigation`, `reviewPolicy`, `resumeWindowHours`, `maxAttempts` |
+| GET | `/admin/exam-versions/:id/validation` | Errors that block publishing, and warnings against the verified format |
+| POST | `/admin/exam-versions/:id/publish`, `/archive` | Publish or archive |
+| POST | `/admin/exam-versions/:id/sections` | Add a section. Settings: `maxAudioPlays`, `allowAudioSeek` |
+| PATCH, DELETE | `/admin/exam-sections/:id` | Edit or remove |
+| POST | `/admin/exam-sections/:id/passages`, `/groups`, `/writing-tasks`, `/speaking-questions` | Add content |
+| PUT | `/admin/exam-sections/:id/audio?durationSeconds=` | Upload audio (raw, up to 100 MB) |
+| GET, PATCH, DELETE | `/admin/audio/:id` | Play, set transcript, remove |
+| PATCH, DELETE | `/admin/passages/:id`, `/admin/question-groups/:id`, `/admin/questions/:id`, `/admin/writing-tasks/:id`, `/admin/speaking-questions/:id` | Edit or remove |
+| PUT | `/admin/question-groups/:id/image` | Upload a diagram, plan or map |
+| POST | `/admin/question-groups/:id/questions` | Add a question with options and accepted answers |
+
+> **Earlier proposal:** the `/papers` routes below were the Phase 0 design. The practice engine above replaced them.
+
 ## Listening and Reading
 
 | Method | Path | Access | Purpose |

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BookOpen, ClipboardList, CreditCard, FileCheck, GraduationCap, Layers, LayoutDashboard, ScrollText, Settings, ShieldCheck, Users } from "lucide-react";
+import { Bell, BookOpen, ClipboardCheck, ClipboardList, CreditCard, FileCheck, GraduationCap, Layers, LayoutDashboard, ScrollText, Settings, ShieldCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -18,6 +18,7 @@ function Shell({ children }: { children: ReactNode }) {
     { href: "/admin/roles", label: t("roles_and_permissions"), icon: ShieldCheck, permission: "roles.read" },
     { href: "/admin/courses", label: t("courses"), icon: BookOpen, anyOf: ["courses.manage", "courses.manage_all"] },
     { href: "/admin/modules", label: t("learning_modules"), icon: Layers, permission: "modules.manage" },
+    { href: "/admin/exams", label: t("exams"), icon: ClipboardCheck, permission: "content.write" },
     { href: "/admin/enrollments", label: t("enrollments"), icon: GraduationCap, permission: "enrollments.read" },
     { href: "/admin/notifications", label: t("announcements"), icon: Bell, permission: "notifications.manage" },
     { href: "/admin/audit-logs", label: t("audit_logs"), icon: ScrollText, permission: "audit.read" },

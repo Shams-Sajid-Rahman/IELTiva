@@ -23,7 +23,8 @@
     "pretest:db": "npm run build -w @ieltiva/shared && prisma generate",
     "test:db": "vitest run --config vitest.integration.config.ts",
     "db:seed": "prisma db seed",
-    "admin:create": "tsx scripts/create-admin.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "exams:sample": "tsx scripts/seed-sample-exams.ts"
   },
   "dependencies": {
     "@ieltiva/shared": "0.1.0",

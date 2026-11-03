@@ -43,11 +43,12 @@ import type { PlannerService } from "../services/planner.service.js";
 import type { ProfileService } from "../services/profile.service.js";
 import type { RoleService } from "../services/role.service.js";
 import type { UserAdminService } from "../services/user-admin.service.js";
+import type { ExamServices } from "../routes/exam.routes.js";
 import type { Actor } from "../types/platform.js";
 import { sendPage, sendSuccess } from "../utils/api-response.js";
 import { AppError } from "../utils/app-error.js";
 
-export type PlatformServices = {
+export type PlatformServices = ExamServices & {
   admin: AdminService;
   courses: CourseService;
   dashboard: DashboardService;

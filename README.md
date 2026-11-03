@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 3, core platform, with the premium frontend upgrade.** The public site, student and admin dashboards, user and role management, courses, enrollment, progress, profiles and notifications are built. The exam screens are an interface preview only. The IELTS practice engine, AI and payments aren't built yet, and there has been no independent security audit.
+> **Status: Phase 4, IELTS practice engine.** The public site, dashboards, courses, and Listening, Reading, Writing, Speaking and mock exams are built. Listening and Reading give raw scores only. Writing and Speaking are stored without scores. AI assessment and payments aren't built yet, production file storage needs Cloudflare R2, and there has been no independent security audit.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -151,6 +151,7 @@ Authentication works locally without external accounts, except for real email an
 | Problem | Fix |
 | --- | --- |
 | `EBADENGINE` from npm | Activate Node 24 with `. .\scripts\use-node.ps1` |
+| Exams page is empty | Run `npm run exams:sample` to add short original samples, or create exams at `/admin/exams` |
 | PowerShell blocks the script | Run `Set-ExecutionPolicy -Scope Process Bypass` in that terminal |
 | API exits with `Invalid environment configuration` | Set the named variables in `.env` |
 | POST requests return `CSRF_FAILED` | Call `GET /api/v1/auth/csrf` and send the token in `X-CSRF-Token` |

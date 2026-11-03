@@ -132,6 +132,12 @@ export function createApiClient({ baseUrl, fetcher }: Options) {
     setSessionExpiredHandler(handler: () => void) {
       onSessionExpired = handler;
     },
+    /** Reads a private file through the API, so its storage location is never exposed. */
+    async getBlob(path: string) {
+      const response = await execute("GET", path);
+      if (!response.ok) await parse(response);
+      return response.blob();
+    },
     url: (path: string) => `${baseUrl}${path}`,
   };
 }

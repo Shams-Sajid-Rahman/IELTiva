@@ -27,6 +27,7 @@ type StudentDashboard = {
   upcomingTasks: { id: string; title: string; skill: string | null; scheduledDate: string; estimatedMinutes: number | null }[];
   recommended: { id: string; title: string; description: string | null; difficulty: string | null; estimatedMinutes: number | null; isPremium: boolean; module: { name: string } }[];
 };
+type AttemptRow = { id: string; status: string; rawScore: number | null; maxScore: number | null; exam: { title: string } };
 type EnrollmentProgress = { id: string; status: string; course: { module: { name: string } }; progress: { total: number; completed: number } };
 type ModuleRow = { id: string; name: string; skill: string | null };
 type HistoryRow = { id: string; minutes: number | null; occurredAt: string };
@@ -193,6 +194,25 @@ function ActivityPanels({ stats }: { stats: StudentDashboard["stats"] }) {
   );
 }
 
+function ExamHistory() {
+  const t = useTranslations("app");
+  const practice = useTranslations("practice");
+  const attempts = useApiQuery<AttemptRow[]>("/attempts?pageSize=4");
+  const rows = attempts.data ?? [];
+  if (!rows.length) return <Empty icon={<ClipboardCheck aria-hidden />} title={t("no_exams_yet")} description={t("exam_history_note")} action={<Button asChild variant="outline"><Link href="/practice">{t("browse_exams")}</Link></Button>} />;
+  return (
+    <ul className="space-y-3">
+      {rows.map((row) => (
+        <li key={row.id} className="text-sm">
+          <Link href={row.status === "IN_PROGRESS" ? `/exam/${row.id}` : `/practice/attempts/${row.id}`} className="font-medium break-words underline-offset-4 hover:underline">{row.exam.title}</Link>
+          <p className="text-muted-foreground">{practice(`status.${row.status}`)}{row.maxScore !== null ? ` · ${row.rawScore ?? 0} / ${row.maxScore}` : ""}</p>
+        </li>
+      ))}
+      <li><Link href="/practice/history" className="text-primary text-sm font-medium underline-offset-4 hover:underline">{t("practice_history")}</Link></li>
+    </ul>
+  );
+}
+
 const quickActions = [
   { href: "/courses", label: "browse_courses", icon: BookOpen },
   { href: "/practice", label: "ielts_practice", icon: Target },
@@ -320,9 +340,7 @@ export function StudentDashboard() {
 
               <Card className="shadow-soft">
                 <CardHeader><CardTitle className="font-display text-lg">{t("exam_history")}</CardTitle></CardHeader>
-                <CardContent>
-                  <Empty icon={<ClipboardCheck aria-hidden />} title={t("no_exams_yet")} description={t("exam_history_note")} action={<Button asChild variant="outline"><Link href="/practice">{t("preview_the_exam_screens")}</Link></Button>} />
-                </CardContent>
+                <CardContent><ExamHistory /></CardContent>
               </Card>
 
               <Card className="shadow-soft md:col-span-2 xl:col-span-1">

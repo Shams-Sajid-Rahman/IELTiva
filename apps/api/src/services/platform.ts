@@ -6,6 +6,8 @@ import { createCourseService } from "./course.service.js";
 import { createDashboardService } from "./dashboard.service.js";
 import type { EmailProvider } from "./email/email.provider.js";
 import { createEnrollmentService } from "./enrollment.service.js";
+import { createAttemptService } from "./exam/attempt.service.js";
+import { createExamAdminService } from "./exam/exam-admin.service.js";
 import { createModuleService } from "./module.service.js";
 import { createNotificationService, type NotificationService } from "./notification.service.js";
 import { createPlannerService } from "./planner.service.js";
@@ -28,6 +30,8 @@ type Deps = {
 export function createPlatformServices({ prisma, env, email, logger, storage, auth, notifications }: Deps) {
   return {
     admin: createAdminService(prisma),
+    attempts: createAttemptService(prisma, storage),
+    examAdmin: createExamAdminService(prisma, storage),
     courses: createCourseService(prisma, notifications),
     dashboard: createDashboardService(prisma, notifications),
     enrollments: createEnrollmentService(prisma, notifications),

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { PracticeOverview } from "@/features/platform/student/courses";
+import { PracticeHome } from "@/features/exam/pages";
 
 export const metadata: Metadata = { title: "IELTS practice", robots: { index: false, follow: false } };
 
 export default function Page() {
-  return <PracticeOverview />;
+  return <PracticeHome />;
 }

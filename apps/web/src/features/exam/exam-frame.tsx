@@ -17,7 +17,7 @@ export function formatClock(totalSeconds: number) {
 }
 
 /** Counts down from a fixed deadline, so a slow or backgrounded tab can't gain time. */
-function Countdown({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
+export function Countdown({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
   const t = useTranslations("exam");
   const [left, setLeft] = useState(seconds);
   const expire = useRef(onExpire);

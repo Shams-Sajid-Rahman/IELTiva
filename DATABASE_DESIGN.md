@@ -292,3 +292,21 @@ Starting values are in `platform_settings` and can be changed without a code cha
 | `privacy.deletion_cancel_window_days` | 14 days |
 
 Backups are daily and kept for 30 days, with a tested restore. Payments stay anonymised as accounting law requires.
+
+## Phase 4 changes
+
+All additive, with no data changed:
+
+| Change | Why |
+| --- | --- |
+| `AttemptStatus.NOT_STARTED` | A section exists from the start of an attempt, and its timer starts later. "Cancelled" uses the existing `ABANDONED` |
+| `exam_versions.settings`, `exam_sections.settings` | Timing, navigation, review and audio rules are configuration, not code |
+| `questions.scoring_mode`, `question_answers.ignore_punctuation` | Question-specific marking |
+| `question_responses.marks_awarded` | Partial credit |
+| `section_attempts.max_score`, `section_attempts.audio_plays` | Score out of what, and plays counted on the server |
+| `exam_attempts.raw_score`, `exam_attempts.max_score` | Raw scores, kept separate from any band |
+| Partial unique index `exam_attempts_one_active` | Two requests can't create two active attempts |
+
+`protect_published_exam_version` now allows `created_by_id` and `reviewed_by_id` to become empty, so deleting an author's account works. Everything else about a published version stays locked.
+
+Database connections now set their session timezone to UTC. Prisma sends times in UTC, so a server in another timezone stored them shifted. On a development database that ran in Asia/Dhaka before this fix, older timestamps read 6 hours early.

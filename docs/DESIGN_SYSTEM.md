@@ -34,7 +34,11 @@ Use `QueryBoundary` for loading, error and ready states, `Empty` for empty state
 
 ## Exam interface preview
 
-`/practice/preview/[skill]` shows the Listening, Reading, Writing and Speaking screens with original sample content. It's interface only: answers stay in memory, nothing is sent, marked or scored, and the microphone is never used. The site's `Permissions-Policy` still blocks the microphone, and Speaking will need that changed deliberately when recording is built.
+`/practice/preview/[skill]` shows the exam screens with original sample content. It's interface only: answers stay in memory, and nothing is sent, marked or scored.
+
+## Exam player
+
+`/exam/[attemptId]` runs real attempts, with no site navigation and no decorative animation. `QuestionGroupView` is the one renderer for all 19 question types, so a new type needs one new branch. `useAutosave` handles waiting, retrying, unsaved-work recovery and stopping when the server closes a section. The server owns the clock, so the screen's countdown is only a display. The site's `Permissions-Policy` allows the microphone for IELTiva's own pages only.
 
 ## Adding shadcn components
 

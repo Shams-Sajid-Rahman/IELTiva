@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, CircleDot, Clock, ExternalLink, GraduationCap, Headphones, Lock, Mic, MonitorPlay, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, CircleDot, Clock, ExternalLink, GraduationCap, Headphones, Lock, Mic, PenLine } from "lucide-react";
 import { motion, useReducedMotion, useScroll } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProgressRing } from "@/components/feedback/progress-ring";
 import { AnimatedNumber } from "@/components/motion/animated-number";
-import { Stagger, StaggerItem } from "@/components/motion/reveal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -478,73 +477,6 @@ export function MyLearning() {
               </ul>
               <Pagination meta={meta} onPage={setPage} />
             </>
-          )
-        }
-      </QueryBoundary>
-    </>
-  );
-}
-
-type PracticeModule = { id: string; name: string; description: string | null; skill: string | null; courseCount: number };
-
-const EXAM_PREVIEWS = [
-  { skill: "listening", value: "LISTENING", icon: Headphones },
-  { skill: "reading", value: "READING", icon: BookOpen },
-  { skill: "writing", value: "WRITING", icon: PenLine },
-  { skill: "speaking", value: "SPEAKING", icon: Mic },
-];
-
-export function PracticeOverview() {
-  const t = useTranslations("app");
-  const labels = useLabels();
-  const query = useApiPage<PracticeModule>("/modules", { pageSize: 50 });
-  return (
-    <>
-      <PageHeader title={t("ielts_practice")} description={t("timed_practice_tests_are_coming_in_the_next_phase_for_n")} />
-      <section aria-labelledby="exam-previews" className="bg-card shadow-soft mb-8 rounded-2xl border p-5 sm:p-6">
-        <div className="flex items-start gap-3">
-          <MonitorPlay className="text-primary mt-1 size-5 shrink-0" aria-hidden />
-          <div className="min-w-0">
-            <h2 id="exam-previews" className="font-display text-lg font-semibold">{t("preview_the_exam_screens")}</h2>
-            <p className="text-muted-foreground mt-1 text-sm">{t("exam_preview_note")}</p>
-          </div>
-        </div>
-        <Stagger className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {EXAM_PREVIEWS.map(({ skill, value, icon: Icon }) => (
-            <StaggerItem key={skill}>
-              <Link href={`/practice/preview/${skill}`} className="lift bg-background flex min-h-24 flex-col justify-between gap-3 rounded-xl border p-4 font-medium">
-                <Icon className="text-primary size-5" aria-hidden />
-                <span>{t("skill_preview", { skill: labels.skill(value) })}</span>
-              </Link>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </section>
-      <QueryBoundary query={query}>
-        {({ items }) =>
-          items.length === 0 ? (
-            <Empty title={t("no_modules_available_yet")} />
-          ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((module) => (
-                <li key={module.id}>
-                  <Card className="lift shadow-soft h-full">
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="font-display text-lg break-words">{module.name}</CardTitle>
-                        <Badge variant="outline">{t("practice_later")}</Badge>
-                      </div>
-                      {module.description && <p className="text-muted-foreground text-sm">{module.description}</p>}
-                    </CardHeader>
-                    <CardContent>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/courses?moduleId=${module.id}`}>{module.courseCount === 1 ? t("view_1_course") : t("view_count_courses", { count: module.courseCount })}</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
-            </ul>
           )
         }
       </QueryBoundary>

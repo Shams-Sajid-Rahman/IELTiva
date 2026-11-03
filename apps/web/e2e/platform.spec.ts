@@ -231,8 +231,8 @@ test("the sidebar collapses on desktop, and the drawer works on mobile", async (
   await expect(page.getByRole("dialog")).toBeHidden();
 });
 
-const studentRoutes = ["/dashboard", "/learning", "/courses", "/practice", "/planner", "/history", "/notifications", "/profile", "/settings"];
-const adminRoutes = ["/admin", "/admin/users", "/admin/roles", "/admin/courses", "/admin/modules", "/admin/enrollments", "/admin/notifications", "/admin/audit-logs", "/admin/settings"];
+const studentRoutes = ["/dashboard", "/learning", "/courses", "/practice", "/practice/history", "/planner", "/history", "/notifications", "/profile", "/settings"];
+const adminRoutes = ["/admin", "/admin/users", "/admin/roles", "/admin/courses", "/admin/modules", "/admin/exams", "/admin/enrollments", "/admin/notifications", "/admin/audit-logs", "/admin/settings"];
 
 for (const theme of ["light", "dark"] as const) {
   test(`every page fits and passes accessibility checks at all widths, ${theme}`, async ({ page }) => {

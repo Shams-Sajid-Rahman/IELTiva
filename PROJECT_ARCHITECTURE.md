@@ -442,6 +442,12 @@ Students request export or deletion in settings, tracked in `data_requests`:
 
 Provider data retention terms and backup expiry are described in the privacy policy. Deleted data ages out of backups on the backup schedule.
 
+## 12A. Practice engine as built
+
+Attempts run on the server. `attempt.service.ts` holds the lifecycle and `marking.ts` holds deterministic marking, with no AI. Each section has its own deadline. Anything past its deadline is closed the next time the attempt is touched, because there are no background workers yet. Row locks make submission atomic and repeatable. Writing submissions get a hidden, empty `assessment_results` row for Phase 5.
+
+**Timing and navigation are settings, not official claims.** Publishing warns when a mock test differs from the verified format below.
+
 ## 13. Verified IELTS facts
 
 Checked on 2026-11-03. Re-check all sources before each release, and record the date here.
