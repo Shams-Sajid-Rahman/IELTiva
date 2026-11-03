@@ -4,6 +4,10 @@
 
 Tables marked **(R2)** are created in Release 2. The rest are Release 1.
 
+## Current state
+
+Only `app_metadata` (`key`, `value`, `updated_at`) exists, as a foundation table that proves migrations work. The tables below are the approved design for later phases.
+
 ## Conventions
 
 | Topic | Rule |

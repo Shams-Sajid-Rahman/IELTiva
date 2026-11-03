@@ -1,6 +1,6 @@
 # IELTiva Development Roadmap
 
-**Status:** Phase 0 approved. Phase 1 (frontend foundation) is built and awaits owner review. Phase 2 hasn't started.
+**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is built and awaits owner review. Phase 2 hasn't started.
 
 Each phase ends with something testable and needs owner approval before the next begins. Durations are rough estimates for one full-time developer with AI assistance, and exclude content creation and marking.
 
@@ -43,11 +43,13 @@ Authorized by the owner as design system and frontend architecture first, with n
 
 ### Phase 1B: Backend foundation (1 week)
 
-- Express and shared package skeletons, Docker Compose for Redis, Prisma setup, first migration
-- Validated environment, error handling, logging, health endpoints
-- Worker with a test job, and continuous integration
+- Express, TypeScript and shared types in a layered API, with PostgreSQL, Prisma 7 and a first migration
+- Validated environment, error handling, logging and health endpoints
+- Backend tests and development scripts
 
-**Done when:** a fresh clone runs web, API and worker from documented commands, a test job completes and CI passes. Timing is confirmed when Phase 1 is reviewed.
+**Done when:** a fresh clone runs web and API from documented commands, and tests pass against a real database.
+
+**Moved out by owner scope:** Redis, the worker and continuous integration. They must be in place before Phase 4, and continuous integration should come first.
 
 ### Phase 2: Public website, authentication and dashboard (2 weeks)
 

@@ -41,7 +41,7 @@ flowchart LR
 - **Web:** renders pages, holds no business logic and never touches the database.
 - **API:** the only authority for auth, entitlements, scoring and payments. It answers quickly and hands slow work to the queue.
 - **Worker:** same codebase as the API with a different entry point. It runs AI assessment, audio processing, retention and scheduled tasks.
-- **Shared package:** Zod contracts, enums and band-score logic used by web and API.
+- **Shared package:** types and constants used by web and API, free of server-only code.
 
 The system is a **modular monolith**. Modules talk through service functions, not across each other's tables.
 
@@ -83,7 +83,7 @@ Versions were checked on npm on 2026-11-03. Pin exact versions when scaffolding.
 | Charts | Recharts | 3.x | 1 |
 | API | Express | 5.x | 1 |
 | ORM | Prisma | 7.x | 1 |
-| Database | PostgreSQL | 18 | 1 |
+| Database | PostgreSQL, the only approved primary database | 18 | 1 |
 | Queue | BullMQ on Redis | 6.x | 1 |
 | Storage | Cloudflare R2 through the AWS S3 SDK | 3.x | 1 |
 | AI | Anthropic SDK behind our own AI service | 1.x | 1 |
@@ -94,7 +94,7 @@ Versions were checked on npm on 2026-11-03. Pin exact versions when scaffolding.
 
 **Node:** IELTiva uses an isolated per-user Node 24.22.1, described in the [README](README.md#isolated-node-24-on-windows). System Node stays at 20.13.1 for other projects. Prisma 7 needs at least 20.19 and Vitest 5 needs at least 22.12.
 
-**Version note:** npm's `latest` tag for the `prisma` CLI currently shows `8.0.0-rc.29`, while `@prisma/client` is at 7.10.1. Pin both to the same 7.x release. Prisma 7 also differs from the 6.x used in `Sajsub_Tech`, so follow its upgrade guide rather than copying old setup code.
+**Version note:** npm's `latest` tag for the `prisma` CLI currently shows `8.0.0-rc.29`, while `@prisma/client` is at 7.10.1. Both are pinned to 7.10.1. `apps/api` and `packages/shared` use TypeScript 6.0.3, because typescript-eslint doesn't support 7.x yet, and `apps/web` uses 7.0.2. Prisma 7 also differs from the 6.x used in `Sajsub_Tech`, so follow its upgrade guide rather than copying old setup code.
 
 ## 5. Folder structure
 
@@ -125,48 +125,25 @@ IELTiva/
 │       │   ├── migrations/
 │       │   └── seed.ts
 │       ├── src/
-│       │   ├── modules/
-│       │   │   ├── auth/
-│       │   │   ├── users/
-│       │   │   ├── content/
-│       │   │   ├── attempts/
-│       │   │   ├── writing/
-│       │   │   ├── mocks/
-│       │   │   ├── calibration/
-│       │   │   ├── billing/
-│       │   │   │   └── gateways/     # PaymentGateway + one file per gateway
-│       │   │   ├── regions/
-│       │   │   ├── media/
-│       │   │   ├── privacy/          # Retention, export, deletion requests
-│       │   │   ├── notifications/
-│       │   │   ├── cms/
-│       │   │   ├── admin/
-│       │   │   ├── speaking/         # Release 2
-│       │   │   ├── tutor/            # Release 2
-│       │   │   ├── planner/          # Release 2
-│       │   │   └── analytics/        # Basic in Release 1, advanced in Release 2
-│       │   ├── ai/
-│       │   │   ├── ai.service.ts     # The only entry point for AI calls
-│       │   │   ├── routes.ts         # Task to tier and effort mapping
-│       │   │   ├── providers/        # AiProvider + anthropic.provider.ts
-│       │   │   ├── usage.ts          # Usage and cost recording
-│       │   │   ├── prompts/
-│       │   │   └── schemas/
-│       │   ├── speech/               # SpeechProvider + Azure, Release 2
-│       │   ├── jobs/
-│       │   ├── middleware/
-│       │   ├── config/
-│       │   ├── app.ts
-│       │   ├── server.ts
-│       │   └── worker.ts
+│       │   ├── config/               # Validated environment, database client, constants
+│       │   ├── controllers/          # HTTP handling only
+│       │   ├── middleware/           # Logging, 404 and error handling
+│       │   ├── routes/               # Central route registration
+│       │   ├── services/             # Business logic, and the only layer using Prisma
+│       │   ├── utils/                # Logger, AppError, responses, shutdown
+│       │   ├── types/
+│       │   ├── generated/            # Prisma client, not committed
+│       │   ├── app.ts                # Application setup
+│       │   └── server.ts             # Startup and shutdown
 │       └── tests/
 ├── packages/
 │   └── shared/
 │       └── src/
-│           ├── contracts/
-│           ├── enums.ts
-│           └── scoring/
-├── docker-compose.yml
+│           ├── api.ts                # ApiResponse, ApiError, PaginationMeta
+│           ├── domain.ts             # UserRole, LearningModule, IELTSExamType
+│           ├── health.ts
+│           └── scoring/              # Not yet built
+├── docker-compose.yml                # PostgreSQL on port 5433
 ├── .env.example
 ├── package.json
 ├── README.md
@@ -176,7 +153,7 @@ IELTiva/
 └── DEVELOPMENT_ROADMAP.md
 ```
 
-Each API module uses `*.routes.ts`, `*.controller.ts`, `*.service.ts` and `*.validators.ts`. Only services touch Prisma.
+The API is organised by layer, as the owner specified for Phase 1B. A feature adds one file per layer, such as `routes/writing.routes.ts`, `controllers/writing.controller.ts` and `services/writing.service.ts`. Later features, including `ai/`, `speech/` and `jobs/`, add their folders when built. Only services touch Prisma.
 
 ## 6. Website pages
 

@@ -9,19 +9,31 @@
     "npm": ">=11.19.1"
   },
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "dev": "npm run dev -w @ieltiva/web",
-    "build": "npm run build -w @ieltiva/web",
+    "dev:api": "npm run dev -w @ieltiva/api",
+    "build": "npm run build -w @ieltiva/shared && npm run build -w @ieltiva/api && npm run build -w @ieltiva/web",
+    "start:api": "npm run start -w @ieltiva/api",
     "start": "npm run start -w @ieltiva/web",
-    "lint": "npm run lint -w @ieltiva/web",
-    "typecheck": "npm run typecheck -w @ieltiva/web",
-    "test": "npm run test -w @ieltiva/web",
-    "test:e2e": "npm run test:e2e -w @ieltiva/web"
+    "lint": "npm run lint -w @ieltiva/api && npm run lint -w @ieltiva/web",
+    "typecheck": "npm run typecheck -w @ieltiva/shared && npm run typecheck -w @ieltiva/api && npm run typecheck -w @ieltiva/web",
+    "test": "npm run test -w @ieltiva/api && npm run test -w @ieltiva/web",
+    "test:api": "npm run test -w @ieltiva/api",
+    "test:e2e": "npm run test:e2e -w @ieltiva/web",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "test:db": "npm run test:db -w @ieltiva/api",
+    "db:migrate": "npm run db:migrate -w @ieltiva/api",
+    "db:deploy": "npm run db:deploy -w @ieltiva/api",
+    "db:validate": "npm run db:validate -w @ieltiva/api",
+    "db:generate": "npm run db:generate -w @ieltiva/api",
+    "db:status": "npm run db:status -w @ieltiva/api"
   },
-  "devDependencies": {
-    "@prisma/client": "7.10.1",
-    "prisma": "7.10.1"
+  "allowScripts": {
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true
   }
 }

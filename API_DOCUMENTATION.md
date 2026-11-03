@@ -2,7 +2,7 @@
 
 **Status:** proposed contract, updated for the decisions of 2026-11-03. Nothing here is implemented yet.
 
-Endpoints marked **R2** arrive in Release 2.
+Only the Health endpoints are implemented so far. Endpoints marked **R2** arrive in Release 2.
 
 **Base URL:** `/api/v1`. Local: `http://localhost:5000/api/v1`.
 
@@ -16,14 +16,18 @@ Access levels below: **Public**, **User** (signed in), **Verified** (email confi
 
 ### Responses
 
+Types for these formats are in `packages/shared`.
+
 ```json
-{ "data": { "id": "0194f3a2-..." } }
+{ "success": true, "message": "Attempt loaded", "data": { "id": "0194f3a2-..." } }
 ```
 
 Lists include pagination:
 
 ```json
 {
+  "success": true,
+  "message": "Attempts loaded",
   "data": [],
   "meta": { "page": 1, "pageSize": 20, "total": 134, "totalPages": 7 }
 }
@@ -33,9 +37,10 @@ Errors:
 
 ```json
 {
+  "success": false,
+  "message": "You don't have any writing assessment credits left.",
   "error": {
     "code": "CREDITS_EXHAUSTED",
-    "message": "You don't have any writing assessment credits left.",
     "details": { "feature": "writing_assessment", "balance": 0 },
     "requestId": "req_01J..."
   }
@@ -63,7 +68,7 @@ Query parameters: `page`, `pageSize` (maximum 100), `sort` (for example `-create
 Assessments return `202 Accepted` with a job:
 
 ```json
-{ "data": { "jobId": "0194f3b8-...", "status": "PENDING" } }
+{ "success": true, "message": "Assessment queued", "data": { "jobId": "0194f3b8-...", "status": "PENDING" } }
 ```
 
 Poll `GET /jobs/:id` every few seconds. Job states are `PENDING`, `PROCESSING`, `COMPLETED` and `FAILED`.
@@ -422,7 +427,28 @@ All paths start with `/admin`. All writes create an audit log entry.
 
 ## Health
 
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| GET | `/health` | Public | Process is running |
-| GET | `/health/ready` | Internal | Database and Redis are reachable |
+Implemented. Public, with no authentication.
+
+`GET /api/v1/health` checks the process and database, waiting up to 5 seconds for the database.
+
+| Status | Meaning |
+| --- | --- |
+| 200 | API running and database connected |
+| 503 | Database unavailable. No internal error details are returned |
+
+```json
+{
+  "success": true,
+  "message": "IELTiva API is running",
+  "data": {
+    "application": "IELTiva API",
+    "apiVersion": "v1",
+    "environment": "development",
+    "status": "healthy",
+    "database": "connected",
+    "timestamp": "2026-11-03T13:00:00.000Z"
+  }
+}
+```
+
+When unhealthy, `success` is `false`, `message` is `IELTiva API is unhealthy`, `status` is `unhealthy` and `database` is `disconnected`.
