@@ -49,6 +49,21 @@ enum ResourceType {
   AUDIO
   DOCUMENT
   EXERCISE
+  EXTERNAL_LINK
+  VOCABULARY
+  GRAMMAR
+  PRACTICE_GUIDANCE
+}
+
+enum DifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum AnnouncementAudience {
+  ALL
+  ROLE
 }
 
 enum EnrollmentStatus {
@@ -194,6 +209,8 @@ enum NotificationType {
   LEARNING
   ASSESSMENT
   PAYMENT
+  SECURITY
+  ANNOUNCEMENT
 }
 
 enum PublicationAction {
@@ -201,6 +218,7 @@ enum PublicationAction {
   PUBLISHED
   ARCHIVED
   RESTORED_TO_DRAFT
+  CONTENT_UPDATED
 }
 
 // ---------- Foundation ----------
@@ -258,6 +276,8 @@ model User {
   auditLogs               AuditLog[]
   notifications           UserNotification[]
   publicationActions      ContentPublicationHistory[]
+  coursesTaught           Course[]
+  announcementsCreated    Notification[]
 
   @@index([status])
   @@index([deletionScheduledAt])
@@ -265,20 +285,23 @@ model User {
 }
 
 model UserProfile {
-  userId           String    @id @map("user_id") @db.Uuid
-  firstName        String    @map("first_name")
-  lastName         String    @map("last_name")
-  avatarStorageKey String?   @map("avatar_storage_key")
-  countryCode      String?   @map("country_code") @db.Char(2)
-  locale           String    @default("en")
-  timezone         String    @default("UTC")
-  examType         ExamType? @map("exam_type")
-  targetBand       Decimal?  @map("target_band") @db.Decimal(2, 1)
-  examDate         DateTime? @map("exam_date") @db.Date
-  weeklyStudyHours Int?      @map("weekly_study_hours")
-  onboardedAt      DateTime? @map("onboarded_at") @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  userId            String    @id @map("user_id") @db.Uuid
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  avatarStorageKey  String?   @map("avatar_storage_key")
+  countryCode       String?   @map("country_code") @db.Char(2)
+  locale            String    @default("en")
+  timezone          String    @default("UTC")
+  examType          ExamType? @map("exam_type")
+  targetBand        Decimal?  @map("target_band") @db.Decimal(2, 1)
+  examDate          DateTime? @map("exam_date") @db.Date
+  weeklyStudyHours  Int?      @map("weekly_study_hours")
+  dailyGoalMinutes  Int?      @map("daily_goal_minutes")
+  preferredSkills   Skill[]   @map("preferred_skills")
+  notificationPrefs Json?     @map("notification_prefs")
+  onboardedAt       DateTime? @map("onboarded_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -389,6 +412,7 @@ model EmailVerificationToken {
   id        String    @id @default(uuid(7)) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   tokenHash String    @unique @map("token_hash")
+  newEmail  String?   @map("new_email")
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
   usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -435,37 +459,49 @@ model OAuthAccount {
 // ---------- B. Learning system ----------
 
 model LearningModule {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  code        String   @unique
-  name        String
-  description String?
-  skill       Skill?
-  position    Int      @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String            @id @default(uuid(7)) @db.Uuid
+  code             String            @unique
+  name             String
+  description      String?
+  skill            Skill?
+  position         Int               @default(0)
+  examType         ExamType?         @map("exam_type")
+  difficulty       DifficultyLevel?
+  estimatedMinutes Int?              @map("estimated_minutes")
+  status           PublicationStatus @default(DRAFT)
+  publishedAt      DateTime?         @map("published_at") @db.Timestamptz(3)
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  courses Course[]
+  courses     Course[]
+  publication ContentPublicationHistory[]
 
   @@map("learning_modules")
 }
 
 model Course {
-  id          String            @id @default(uuid(7)) @db.Uuid
-  moduleId    String            @map("module_id") @db.Uuid
-  slug        String            @unique
-  title       String
-  description String?
-  examType    ExamType?         @map("exam_type")
-  status      PublicationStatus @default(DRAFT)
-  provenance  ContentProvenance @default(ORIGINAL)
-  isPremium   Boolean           @default(false) @map("is_premium")
-  publishedAt DateTime?         @map("published_at") @db.Timestamptz(3)
-  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz(3)
-  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                 String            @id @default(uuid(7)) @db.Uuid
+  moduleId           String            @map("module_id") @db.Uuid
+  slug               String            @unique
+  title              String
+  description        String?
+  examType           ExamType?         @map("exam_type")
+  status             PublicationStatus @default(DRAFT)
+  provenance         ContentProvenance @default(ORIGINAL)
+  isPremium          Boolean           @default(false) @map("is_premium")
+  thumbnailUrl       String?           @map("thumbnail_url")
+  difficulty         DifficultyLevel?
+  learningObjectives String[]          @map("learning_objectives")
+  estimatedMinutes   Int?              @map("estimated_minutes")
+  instructorId       String?           @map("instructor_id") @db.Uuid
+  publishedAt        DateTime?         @map("published_at") @db.Timestamptz(3)
+  deletedAt          DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   module      LearningModule              @relation(fields: [moduleId], references: [id], onDelete: Restrict)
+  instructor  User?                       @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   sections    CourseSection[]
   enrollments UserEnrollment[]
   history     UserLearningHistory[]
@@ -473,17 +509,20 @@ model Course {
 
   @@index([moduleId, status])
   @@index([status, examType])
+  @@index([instructorId])
   @@map("courses")
 }
 
 model CourseSection {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  courseId    String   @map("course_id") @db.Uuid
+  id          String    @id @default(uuid(7)) @db.Uuid
+  courseId    String    @map("course_id") @db.Uuid
   position    Int
   title       String
   description String?
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  isVisible   Boolean   @default(true) @map("is_visible")
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   course    Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
   resources LearningResource[]
@@ -500,46 +539,54 @@ model LearningResource {
   title           String
   body            String?
   storageKey      String?      @map("storage_key")
+  externalUrl     String?      @map("external_url")
   durationMinutes Int?         @map("duration_minutes")
   deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(3)
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  section        CourseSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  progress       LearningProgress[]
-  studyPlanTasks StudyPlanTask[]
-  history        UserLearningHistory[]
+  section             CourseSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress            LearningProgress[]
+  studyPlanTasks      StudyPlanTask[]
+  enrollmentsLastHere UserEnrollment[]
+  history             UserLearningHistory[]
 
   @@unique([sectionId, position])
   @@map("learning_resources")
 }
 
 model UserEnrollment {
-  id          String           @id @default(uuid(7)) @db.Uuid
-  userId      String           @map("user_id") @db.Uuid
-  courseId    String           @map("course_id") @db.Uuid
-  status      EnrollmentStatus @default(ACTIVE)
-  completedAt DateTime?        @map("completed_at") @db.Timestamptz(3)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id             String           @id @default(uuid(7)) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  courseId       String           @map("course_id") @db.Uuid
+  status         EnrollmentStatus @default(ACTIVE)
+  completedAt    DateTime?        @map("completed_at") @db.Timestamptz(3)
+  lastAccessedAt DateTime?        @map("last_accessed_at") @db.Timestamptz(3)
+  lastResourceId String?          @map("last_resource_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course            @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  lastResource LearningResource? @relation(fields: [lastResourceId], references: [id], onDelete: SetNull)
 
   @@unique([userId, courseId])
   @@index([courseId])
+  @@index([lastResourceId])
+  @@index([status, createdAt])
   @@map("user_enrollments")
 }
 
 model LearningProgress {
-  id          String         @id @default(uuid(7)) @db.Uuid
-  userId      String         @map("user_id") @db.Uuid
-  resourceId  String         @map("resource_id") @db.Uuid
-  status      ProgressStatus @default(NOT_STARTED)
-  percent     Int            @default(0)
-  completedAt DateTime?      @map("completed_at") @db.Timestamptz(3)
-  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id             String         @id @default(uuid(7)) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  resourceId     String         @map("resource_id") @db.Uuid
+  status         ProgressStatus @default(NOT_STARTED)
+  percent        Int            @default(0)
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
+  lastAccessedAt DateTime?      @map("last_accessed_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   resource LearningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
@@ -1360,17 +1407,27 @@ model AuditLog {
 }
 
 model Notification {
-  id        String           @id @default(uuid(7)) @db.Uuid
-  type      NotificationType
-  title     String
-  body      String
-  link      String?
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id           String                @id @default(uuid(7)) @db.Uuid
+  type         NotificationType
+  title        String
+  body         String
+  link         String?
+  audience     AnnouncementAudience?
+  audienceRole String?               @map("audience_role")
+  status       PublicationStatus     @default(PUBLISHED)
+  publishedAt  DateTime?             @map("published_at") @db.Timestamptz(3)
+  expiresAt    DateTime?             @map("expires_at") @db.Timestamptz(3)
+  createdById  String?               @map("created_by_id") @db.Uuid
+  dedupeKey    String?               @unique @map("dedupe_key")
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   recipients UserNotification[]
+  createdBy  User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([type, createdAt])
+  @@index([createdById])
+  @@index([status, createdAt])
   @@map("notifications")
 }
 
@@ -1379,6 +1436,7 @@ model UserNotification {
   userId         String    @map("user_id") @db.Uuid
   notificationId String    @map("notification_id") @db.Uuid
   readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+  dismissedAt    DateTime? @map("dismissed_at") @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1405,6 +1463,7 @@ model ContentPublicationHistory {
   id            String             @id @default(uuid(7)) @db.Uuid
   examVersionId String?            @map("exam_version_id") @db.Uuid
   courseId      String?            @map("course_id") @db.Uuid
+  moduleId      String?            @map("module_id") @db.Uuid
   actorId       String?            @map("actor_id") @db.Uuid
   action        PublicationAction
   fromStatus    PublicationStatus? @map("from_status")
@@ -1413,11 +1472,13 @@ model ContentPublicationHistory {
   createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  examVersion ExamVersion? @relation(fields: [examVersionId], references: [id], onDelete: SetNull)
-  course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  actor       User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  examVersion    ExamVersion?    @relation(fields: [examVersionId], references: [id], onDelete: SetNull)
+  learningModule LearningModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  course         Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  actor          User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([examVersionId])
+  @@index([moduleId])
   @@index([courseId])
   @@index([actorId])
   @@map("content_publication_history")

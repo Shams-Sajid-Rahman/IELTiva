@@ -10,7 +10,7 @@ import { exposeRequestId, requestLogger } from "./middleware/request-context.js"
 import { createApiRouter } from "./routes/index.js";
 import type { AppDependencies } from "./types/app.js";
 
-export function createApp({ env, logger, checkDatabase, authRouter }: AppDependencies): Express {
+export function createApp({ env, logger, checkDatabase, authRouter, platformRouter }: AppDependencies): Express {
   const app = express();
 
   app.disable("x-powered-by");
@@ -27,7 +27,7 @@ export function createApp({ env, logger, checkDatabase, authRouter }: AppDepende
   app.use(
     API_PREFIX,
     csrfProtection(env.CSRF_SECRET, env.FRONTEND_URL),
-    createApiRouter({ env, checkDatabase, authRouter }),
+    createApiRouter({ env, checkDatabase, authRouter, platformRouter }),
   );
 
   app.use(notFoundHandler);

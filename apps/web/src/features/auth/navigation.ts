@@ -1,6 +1,6 @@
 import type { AuthUser, UserRole } from "@ieltiva/shared";
 
-export const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "EDITOR"];
+export const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "EDITOR", "INSTRUCTOR"];
 
 export function homePathFor(user: Pick<AuthUser, "roles">) {
   return user.roles.some((role) => STAFF_ROLES.includes(role)) ? "/admin" : "/dashboard";

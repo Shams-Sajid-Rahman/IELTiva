@@ -40,6 +40,16 @@ export function requireRole(...roles: string[]): RequestHandler {
   };
 }
 
+export function requireAnyPermission(...permissions: string[]): RequestHandler {
+  return (req, _res, next) => {
+    if (!req.auth) throw new AppError(401, "UNAUTHENTICATED", "Please sign in to continue.");
+    if (!permissions.some((permission) => req.auth?.permissions.includes(permission))) {
+      throw new AppError(403, "FORBIDDEN", "You don't have access to this resource.");
+    }
+    next();
+  };
+}
+
 export function requirePermission(...permissions: string[]): RequestHandler {
   return (req, _res, next) => {
     if (!req.auth) throw new AppError(401, "UNAUTHENTICATED", "Please sign in to continue.");

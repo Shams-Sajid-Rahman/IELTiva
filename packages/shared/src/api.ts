@@ -3,6 +3,7 @@ export const errorCodes = [
   "UNAUTHENTICATED",
   "FORBIDDEN",
   "CSRF_FAILED",
+  "ENTITLEMENT_REQUIRED",
   "NOT_FOUND",
   "CONFLICT",
   "PAYLOAD_TOO_LARGE",

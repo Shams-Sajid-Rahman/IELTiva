@@ -1,9 +1,12 @@
 import type { PrismaClient } from "../src/generated/prisma/client.js";
 import { AITier } from "../src/generated/prisma/enums.js";
 
+const ROLE_MAPPING_SETTING = "seed.role_mapping_version";
+const ROLE_MAPPING_VERSION = 2;
+
 const roles = [
   { code: "STUDENT", name: "Student", description: "Learner using purchased and free practice" },
-  { code: "INSTRUCTOR", name: "Instructor", description: "Reserved for future instructor features" },
+  { code: "INSTRUCTOR", name: "Instructor", description: "Creates and publishes their own courses" },
   { code: "MARKER", name: "Marker", description: "Marks assigned, de-identified calibration samples" },
   { code: "EDITOR", name: "Editor", description: "Authors and reviews content" },
   { code: "ADMIN", name: "Administrator", description: "Manages users, content and payments" },
@@ -29,9 +32,20 @@ const permissions = [
   ["ai.band_release", "Approve public band releases"],
   ["settings.manage", "Change platform settings"],
   ["audit.read", "Read the audit log"],
+  ["dashboard.admin", "View the administration overview and analytics"],
+  ["roles.read", "View roles and permissions"],
+  ["roles.assign", "Assign roles within your own authority"],
+  ["courses.manage", "Create and edit courses you teach"],
+  ["courses.manage_all", "Create and edit any course"],
+  ["courses.publish", "Publish, unpublish and archive courses you can edit"],
+  ["modules.manage", "Manage learning modules"],
+  ["enrollments.read", "View all enrollments"],
+  ["enrollments.manage", "Change any enrollment"],
+  ["notifications.manage", "Create platform announcements"],
+  ["settings.read", "View platform settings"],
 ] as const;
 
-const editor = ["content.read", "content.write", "content.review"];
+const editor = ["content.read", "content.write", "content.review", "courses.manage", "courses.manage_all", "modules.manage"];
 const admin = [
   ...editor,
   "content.publish",
@@ -43,11 +57,19 @@ const admin = [
   "payments.manage",
   "ai.usage.read",
   "audit.read",
+  "dashboard.admin",
+  "roles.read",
+  "roles.assign",
+  "courses.publish",
+  "enrollments.read",
+  "enrollments.manage",
+  "notifications.manage",
+  "settings.read",
 ];
 
 const rolePermissions: Record<string, string[]> = {
   STUDENT: ["content.read", "attempts.own"],
-  INSTRUCTOR: ["content.read", "assessments.review"],
+  INSTRUCTOR: ["content.read", "assessments.review", "courses.manage", "courses.publish"],
   MARKER: ["calibration.mark"],
   EDITOR: editor,
   ADMIN: admin,
@@ -59,6 +81,7 @@ const modules = [
   { code: "READING", name: "Reading", skill: "READING", position: 2 },
   { code: "WRITING", name: "Writing", skill: "WRITING", position: 3 },
   { code: "SPEAKING", name: "Speaking", skill: "SPEAKING", position: 4 },
+  { code: "GENERAL", name: "General IELTS preparation", skill: null, position: 5 },
 ] as const;
 
 // Retention values are starting points, editable later without a code change.
@@ -92,16 +115,28 @@ export async function runSeed(prisma: PrismaClient, env: SeedEnv) {
   const roleRows = await prisma.role.findMany({ where: { code: { in: roles.map((r) => r.code) } } });
   const permissionRows = await prisma.permission.findMany();
   const permissionId = new Map(permissionRows.map((p) => [p.code, p.id]));
-  await prisma.rolePermission.createMany({
-    data: roleRows.flatMap((role) =>
-      (rolePermissions[role.code] ?? []).map((code) => ({ roleId: role.id, permissionId: permissionId.get(code)! })),
-    ),
-    skipDuplicates: true,
-  });
+  // Default mappings apply once per version, so a repeat seed can't undo an administrator's later change.
+  const applied = await prisma.platformSetting.findUnique({ where: { key: ROLE_MAPPING_SETTING } });
+  if (applied?.value !== ROLE_MAPPING_VERSION) {
+    await prisma.rolePermission.createMany({
+      data: roleRows.flatMap((role) =>
+        (rolePermissions[role.code] ?? []).map((code) => ({ roleId: role.id, permissionId: permissionId.get(code)! })),
+      ),
+      skipDuplicates: true,
+    });
+    await prisma.platformSetting.upsert({
+      where: { key: ROLE_MAPPING_SETTING },
+      create: { key: ROLE_MAPPING_SETTING, value: ROLE_MAPPING_VERSION, description: "Applied default role mapping version" },
+      update: { value: ROLE_MAPPING_VERSION },
+    });
+  }
 
   for (const learningModule of modules) {
-    const { code, ...rest } = learningModule;
-    await prisma.learningModule.upsert({ where: { code }, create: learningModule, update: rest });
+    await prisma.learningModule.upsert({
+      where: { code: learningModule.code },
+      create: { ...learningModule, status: "PUBLISHED", publishedAt: new Date() },
+      update: {},
+    });
   }
 
   for (const setting of settings) {

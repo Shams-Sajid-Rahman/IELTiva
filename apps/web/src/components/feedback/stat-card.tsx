@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export function StatCard({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode }) {
   return (
-    <Card className="shadow-soft">
+    <Card className="shadow-soft h-full">
       <CardContent className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-muted-foreground text-sm">{label}</p>

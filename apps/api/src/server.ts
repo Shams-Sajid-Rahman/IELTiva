@@ -2,10 +2,14 @@ import { createApp } from "./app.js";
 import { API_PREFIX } from "./config/constants.js";
 import { createPrismaClient } from "./config/database.js";
 import { loadConfig } from "./config/env.js";
+import { createAuthMiddleware } from "./middleware/authenticate.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
+import { createPlatformRouter } from "./routes/platform.routes.js";
 import { createAuthService } from "./services/auth.service.js";
 import { createEmailProvider } from "./services/email/index.js";
 import { createGoogleProvider } from "./services/google-oauth.service.js";
+import { createNotificationService, createPlatformServices } from "./services/platform.js";
+import { LocalPrivateStorage, UnavailableStorage } from "./services/storage/private-storage.js";
 import { createTokenService } from "./services/token.service.js";
 import { createShutdown } from "./utils/graceful-shutdown.js";
 import { createLogger } from "./utils/logger.js";
@@ -16,7 +20,12 @@ const prisma = createPrismaClient(env.DATABASE_URL);
 const tokens = createTokenService(env);
 const email = createEmailProvider(env, logger);
 const google = createGoogleProvider(env);
-const auth = createAuthService({ prisma, env, tokens, email, logger });
+const notifications = createNotificationService(prisma);
+const auth = createAuthService({ prisma, env, tokens, email, logger, notifyUser: notifications.notifyUser });
+// Production stays unavailable until the private cloud storage provider exists.
+const storage = env.NODE_ENV !== "production" && env.STORAGE_LOCAL_DIR ? new LocalPrivateStorage(env.STORAGE_LOCAL_DIR) : new UnavailableStorage();
+const { authenticateUser } = createAuthMiddleware({ tokens, auth });
+const platformRouter = createPlatformRouter(createPlatformServices({ prisma, env, email, logger, storage, auth, notifications }), authenticateUser);
 
 const app = createApp({
   env,
@@ -25,6 +34,7 @@ const app = createApp({
     await prisma.$queryRaw`SELECT 1`;
   },
   authRouter: createAuthRouter({ env, auth, tokens, google }),
+  platformRouter,
 });
 
 const server = app.listen(env.PORT, () => {

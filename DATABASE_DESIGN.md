@@ -4,7 +4,24 @@
 
 ## Current state
 
-Phase 2A implemented this design in `apps/api/prisma/schema.prisma`, with 57 models: the 56 approved entities plus the `app_metadata` foundation table. No feature code uses them yet.
+Phase 2A implemented this design in `apps/api/prisma/schema.prisma`, with 57 models: the 56 approved entities plus the `app_metadata` foundation table. Phase 3 uses the user, learning, notification, audit and settings tables, and added columns to them. Exam, attempt, AI and payment tables await later phases.
+
+**Phase 3 additions (additive migration `20261104090000_phase_3_core_platform`):**
+
+| Table | Added |
+| --- | --- |
+| `learning_modules` | `exam_type`, `difficulty`, `estimated_minutes`, `status`, `published_at` |
+| `courses` | `thumbnail_url`, `difficulty`, `learning_objectives`, `estimated_minutes`, `instructor_id` |
+| `course_sections` | `is_visible`, `archived_at` |
+| `learning_resources` | `external_url`. `ResourceType` gained `EXTERNAL_LINK`, `VOCABULARY`, `GRAMMAR`, `PRACTICE_GUIDANCE` |
+| `user_enrollments` | `last_accessed_at`, `last_resource_id` |
+| `learning_progress` | `last_accessed_at`, and a check that completed means 100% |
+| `user_profiles` | `daily_goal_minutes`, `preferred_skills`, `notification_prefs` |
+| `email_verification_tokens` | `new_email`, for confirmed email changes |
+| `notifications` | `audience`, `audience_role`, `status`, `published_at`, `expires_at`, `created_by_id`, `dedupe_key`. `NotificationType` gained `SECURITY`, `ANNOUNCEMENT` |
+| `user_notifications` | `dismissed_at` |
+| `content_publication_history` | `module_id`. `PublicationAction` gained `CONTENT_UPDATED` |
+| `audit_logs` | A trigger that rejects edits and deletion |
 
 ## Conventions
 
@@ -215,7 +232,7 @@ Prisma's schema can't express these, so they're SQL in the Phase 2A migration. A
 
 ## Seed data
 
-`npm run db:seed` is repeatable. It creates 6 roles, 18 permissions and their mappings, 4 learning modules, 6 platform settings, 1 disabled SSLCommerz gateway, and up to 3 inactive AI configurations from `AI_PROVIDER` and the `AI_MODEL_*` variables, with bands hidden. Later edits to settings, gateways and AI rows are kept. **It creates no user accounts and no package prices.**
+`npm run db:seed` is repeatable. It creates 6 roles, 29 permissions and their mappings, 5 learning modules, 7 platform settings including its mapping version, 1 disabled SSLCommerz gateway, and up to 3 inactive AI configurations from `AI_PROVIDER` and the `AI_MODEL_*` variables, with bands hidden. Later edits to settings, gateways and AI rows are kept. Default role mappings apply once per version, so a repeat seed can't undo an administrator's change. **It creates no user accounts and no package prices.** `npm run admin:create` creates or promotes the first administrator from `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 
 ## Differences from the Phase 0 design
 

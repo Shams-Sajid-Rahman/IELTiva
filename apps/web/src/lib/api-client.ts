@@ -1,4 +1,4 @@
-import type { ApiError, ErrorCode } from "@ieltiva/shared";
+import type { ApiError, ErrorCode, PaginationMeta } from "@ieltiva/shared";
 
 export type ClientErrorCode = ErrorCode | "NETWORK_ERROR" | "UNKNOWN_ERROR";
 
@@ -39,14 +39,14 @@ export function createApiClient({ baseUrl, fetcher }: Options) {
 
   async function send(method: string, path: string, body?: unknown, csrf?: string) {
     const headers: Record<string, string> = {};
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (body !== undefined && !(body instanceof Blob)) headers["Content-Type"] = "application/json";
     if (csrf) headers["X-CSRF-Token"] = csrf;
     try {
       return await (fetcher ?? fetch)(`${baseUrl}${path}`, {
         method,
         headers,
         credentials: "include",
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        ...(body === undefined ? {} : { body: body instanceof Blob ? body : JSON.stringify(body) }),
       });
     } catch {
       throw new ApiRequestError(0, "NETWORK_ERROR", CONNECTION_MESSAGE);
@@ -54,8 +54,12 @@ export function createApiClient({ baseUrl, fetcher }: Options) {
   }
 
   async function parse<T>(response: Response): Promise<T> {
+    return (await parseEnvelope<T>(response)).data;
+  }
+
+  async function parseEnvelope<T>(response: Response): Promise<{ data: T; meta: PaginationMeta }> {
     const json: unknown = await response.json().catch(() => null);
-    if (response.ok) return (json as { data: T } | null)?.data as T;
+    if (response.ok) return json as { data: T; meta: PaginationMeta };
     const failure = json as ApiError | null;
     throw new ApiRequestError(
       response.status,
@@ -98,22 +102,33 @@ export function createApiClient({ baseUrl, fetcher }: Options) {
   }
 
   async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+    return parse<T>(await execute(method, path, body, options));
+  }
+
+  async function execute(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<Response> {
     const dispatch = () => (method === "GET" ? send(method, path) : sendWithCsrf(method, path, body ?? {}));
     let response = await dispatch();
     if (response.status === 401 && !options.skipRefresh) {
       if (!(await refreshSession())) {
         onSessionExpired();
-        return parse<T>(response);
+        return response;
       }
       response = await dispatch();
       if (response.status === 401) onSessionExpired();
     }
-    return parse<T>(response);
+    return response;
   }
 
   return {
     get: <T>(path: string, options?: RequestOptions) => request<T>("GET", path, undefined, options),
     post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>("POST", path, body, options),
+    patch: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>("PATCH", path, body, options),
+    put: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>("PUT", path, body, options),
+    delete: <T>(path: string, options?: RequestOptions) => request<T>("DELETE", path, undefined, options),
+    async getPage<T>(path: string) {
+      const { data, meta } = await parseEnvelope<T[]>(await execute("GET", path));
+      return { items: data, meta };
+    },
     setSessionExpiredHandler(handler: () => void) {
       onSessionExpired = handler;
     },

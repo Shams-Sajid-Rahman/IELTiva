@@ -1,4 +1,4 @@
-﻿import { expect, vi } from "vitest";
+import { expect, vi } from "vitest";
 
 export const router = { replace: vi.fn(), push: vi.fn() };
 export const navigation = { pathname: "/dashboard", params: new URLSearchParams() };

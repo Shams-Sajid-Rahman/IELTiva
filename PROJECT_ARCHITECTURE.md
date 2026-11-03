@@ -81,7 +81,7 @@ Versions were checked on npm on 2026-11-03. Pin exact versions when scaffolding.
 | Animation | Framer Motion, published as the `motion` package | 14.x | 1 |
 | Client data | TanStack Query | 5.x | 1 |
 | Forms | React Hook Form + Zod | 7.x, 4.x | 1 |
-| Exam UI state | Zustand | 5.x | 1 |
+| Exam UI state | Zustand, not installed until the practice engine | 5.x | 1 |
 | Charts | Recharts | 3.x | 1 |
 | API | Express | 5.x | 1 |
 | ORM | Prisma | 7.x | 1 |
@@ -129,6 +129,7 @@ IELTiva/
 │       ├── src/
 │       │   ├── config/               # Validated environment, database client, constants
 │       │   ├── controllers/          # HTTP handling only
+│       │   ├── validators/           # Auth query schemas. Shared schemas live in packages/shared
 │       │   ├── middleware/           # Logging, 404 and error handling
 │       │   ├── routes/               # Central route registration
 │       │   ├── services/             # Business logic, and the only layer using Prisma
@@ -143,6 +144,7 @@ IELTiva/
 │       └── src/
 │           ├── api.ts                # ApiResponse, ApiError, PaginationMeta
 │           ├── domain.ts             # UserRole, LearningModule, IELTSExamType
+│           ├── platform.ts           # Core platform validation schemas
 │           ├── health.ts
 │           └── scoring/              # Not yet built
 ├── .env.example
@@ -154,11 +156,17 @@ IELTiva/
 └── DEVELOPMENT_ROADMAP.md
 ```
 
-The API is organised by layer, as the owner specified for Phase 1B. A feature adds one file per layer, such as `routes/writing.routes.ts`, `controllers/writing.controller.ts` and `services/writing.service.ts`. Later features, including `ai/`, `speech/` and `jobs/`, add their folders when built. Only services touch Prisma.
+The API is organised by layer, as the owner specified for Phase 1B. A feature adds one file per layer, such as `routes/writing.routes.ts`, `controllers/writing.controller.ts` and `services/writing.service.ts`. Core platform controllers are in `controllers/platform.controllers.ts` and their routes in `routes/platform.routes.ts`, with one service per domain. Later features, including `ai/`, `speech/` and `jobs/`, add their folders when built. Only services touch Prisma.
 
 ## 6. Website pages
 
-### Release 1
+### Built in Phase 3
+
+Student: `/dashboard`, `/learning`, `/courses`, `/courses/[courseId]`, `/courses/[courseId]/resources/[resourceId]`, `/practice`, `/planner`, `/history`, `/notifications`, `/profile`, `/settings`.
+
+Admin: `/admin`, `/admin/users`, `/admin/users/[id]`, `/admin/roles`, `/admin/courses`, `/admin/courses/[id]`, `/admin/modules`, `/admin/enrollments`, `/admin/notifications`, `/admin/audit-logs`, `/admin/settings`.
+
+### Release 1 plan
 
 | Area | Routes |
 | --- | --- |
@@ -173,6 +181,30 @@ The API is organised by layer, as the owner specified for Phase 1B. A feature ad
 `/speaking`, `/speaking/session/[id]`, `/speaking/sessions/[id]/report`, `/tutor`, `/tutor/[conversationId]`, `/planner`, `/analytics`, `/admin/content/speaking-sets`.
 
 ## 7. Core module behaviour
+
+### Core platform (Phase 3)
+
+**Student and admin areas:** `(student)` and `(admin)` route groups each wrap a shared `DashboardShell`, with a collapsible sidebar, mobile drawer, breadcrumbs, notification bell and account menu. Public and sign-in pages use `SiteShell`. All data comes from the API through TanStack Query, whose cache is cleared when the user signs out.
+
+**Authorization:** the API is the boundary. Navigation only hides what a person can't use. Routes check permissions, and services check ownership and authority.
+
+| Role | Default access |
+| --- | --- |
+| `STUDENT` | Own learning data only |
+| `INSTRUCTOR` | Create and publish courses they teach |
+| `EDITOR` | Edit any course and manage modules, without publishing courses |
+| `ADMIN` | Users, role assignment within their authority, all content, enrollments, announcements, audit log, and viewing settings |
+| `SUPER_ADMIN` | Everything, including changing role permissions and settings |
+
+**Content publication:** courses and modules move through draft, published and archived. Publishing validates content, and every step is written to `ContentPublicationHistory` with its actor. Courses don't use `ExamVersion`, which holds exam content, so published courses stay editable, and every change is recorded as `CONTENT_UPDATED`. Used courses can't be deleted, and removed lessons are soft-deleted so student records remain.
+
+**Progress:** percentages are calculated from `LearningProgress` over currently visible resources. A completed enrollment stays completed if lessons are added later. Practice time is the sum of time logged while a lesson page was open, so it's approximate. Streaks count consecutive days with recorded activity in the student's timezone.
+
+**Notifications:** `notification.service.ts` creates in-app messages. Announcements insert one row per recipient in a single SQL statement, because there are no background workers. Learning and announcement messages respect preferences, and security messages always arrive.
+
+**Audit:** `recordAudit` strips credential-like keys. A database trigger rejects edits and deletion of audit rows.
+
+**Storage:** `PrivateStorage` is the abstraction for future Cloudflare R2. Development uses a local folder set by `STORAGE_LOCAL_DIR`. Production returns 503 for uploads until R2 exists. Course resources are metadata and https links only.
 
 ### Listening and Reading engine
 

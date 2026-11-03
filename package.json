@@ -30,7 +30,8 @@
     "db:generate": "npm run db:generate -w @ieltiva/api",
     "db:status": "npm run db:status -w @ieltiva/api",
     "db:seed": "npm run db:seed -w @ieltiva/api",
-    "build:e2e": "npm run build -w @ieltiva/shared && npm run build:e2e -w @ieltiva/web"
+    "build:e2e": "npm run build -w @ieltiva/shared && npm run build:e2e -w @ieltiva/web",
+    "admin:create": "npm run admin:create -w @ieltiva/api"
   },
   "allowScripts": {
     "prisma@7.10.1": true,

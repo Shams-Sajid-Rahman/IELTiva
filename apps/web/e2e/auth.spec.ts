@@ -123,7 +123,8 @@ test("the full student journey works against the real API", async ({ page, conte
   // Keep this session's cookies, to prove they stop working after sign-out.
   const before = await context.cookies();
   const cookieHeader = before.map((c) => `${c.name}=${c.value}`).join("; ");
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login\?next=%2Fdashboard$/);
@@ -183,14 +184,15 @@ test("students can't open the admin area, and staff land on it", async ({ page }
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "You don't have access to this page" })).toBeVisible();
-  await expect(page.getByText("Administration", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Administration" })).toHaveCount(0);
 
   await db((c) =>
     c.query(`INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = $1 AND r.code = 'ADMIN'`, [email]),
   );
   await page.reload();
-  await expect(page.getByText("Administration", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { name: "Administration" })).toBeVisible();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);

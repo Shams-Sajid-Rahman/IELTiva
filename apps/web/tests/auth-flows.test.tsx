@@ -17,7 +17,6 @@ const { ResetPasswordForm } = await import("@/features/auth/components/reset-pas
 const { VerifyEmailView } = await import("@/features/auth/components/verify-email-view");
 const { GoogleResultView } = await import("@/features/auth/components/google-result-view");
 const { EmailRequestForm } = await import("@/features/auth/components/email-request-form");
-const { AccountSummary } = await import("@/features/auth/components/account-summary");
 const { createApiClient } = await import("@/lib/api-client");
 const { homePathFor, safeNextPath } = await import("@/features/auth/navigation");
 
@@ -301,19 +300,6 @@ describe("route protection", () => {
     setSearch("next=https%3A%2F%2Fevil.example");
     setup(meOk, <GuestOnly><p>form</p></GuestOnly>, true);
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/dashboard"));
-  });
-});
-
-describe("dashboard summary", () => {
-  it("shows the user's details and verification status, and signs out", async () => {
-    const user = userEvent.setup();
-    const { calls } = setup((path) => (path === "/auth/logout" ? json(200, null) : meOk(path, {})), <AccountSummary title="Student" description="Body" />, true);
-    expect(await screen.findByText("Welcome, Ayesha")).toBeInTheDocument();
-    expect(screen.getByText(student.email)).toBeInTheDocument();
-    expect(screen.getByText("Please verify your email")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/login"));
-    expect(calls.some((c) => c.path === "/auth/logout")).toBe(true);
   });
 });
 

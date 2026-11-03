@@ -1,8 +1,8 @@
 # IELTiva API Documentation
 
-**Status:** proposed contract, updated for the decisions of 2026-11-03. Nothing here is implemented yet.
+**Status:** Health, Authentication and Core platform are implemented. Other sections are the proposed contract for later phases.
 
-Only the Health and Authentication endpoints are implemented so far. Table names in later sections come from the Phase 0 design, and [DATABASE_DESIGN.md](DATABASE_DESIGN.md#differences-from-the-phase-0-design) lists what Phase 2A changed. Future endpoints will be reconciled when each is built. Endpoints marked **R2** arrive in Release 2.
+Documented differences from the requested Phase 3 list are marked **Added**, and all of them are additions. Table names in later sections come from the Phase 0 design, and [DATABASE_DESIGN.md](DATABASE_DESIGN.md#differences-from-the-phase-0-design) lists what Phase 2A changed. Future endpoints will be reconciled when each is built. Endpoints marked **R2** arrive in Release 2.
 
 **Base URL:** `/api/v1`. Local: `http://localhost:5000/api/v1`.
 
@@ -152,20 +152,119 @@ Auth responses use `Cache-Control: no-store`. Recovery emails are limited to one
 
 **Google result:** the callback redirects to `<FRONTEND_URL>/auth/google/result` with `status` set to `signed_in`, `linked` or `error`. `reason` is one of `invalid_state`, `google_denied`, `google_unavailable`, `session_changed`, `google_validation_failed`, `email_not_verified`, `account_exists`, `already_linked`, `verify_email_first` or `account_unavailable`. An existing password account is never linked by email. Its owner signs in, verifies their email and uses `?intent=link`.
 
-## Users
+## Core platform
 
-| Method | Path | Access | Purpose |
+Implemented in Phase 3. Every route needs a signed-in user and returns `Cache-Control: no-store`. State-changing routes need the CSRF token. Lists accept `page` and `pageSize` (maximum 100) and return `meta`. A permission listed here is checked on the server for each request. Ownership checks happen inside the services, and someone else's private record returns 404.
+
+### Dashboard
+
+| Method | Path | Permission | Purpose |
 | --- | --- | --- | --- |
-| GET | `/me` | User | Account, profile, passes, credit balances |
-| PATCH | `/me` | User | Update name, avatar, locale, timezone, country |
-| POST | `/me/avatar/upload-url` | User | Presigned avatar upload |
-| PATCH | `/me/profile` | User | Target band, exam date, module, study hours |
-| POST | `/me/change-password` | User | Change password |
-| GET | `/me/sessions` | User | Signed-in devices |
-| DELETE | `/me/sessions/:id` | User | Revoke a device |
-| POST | `/me/data-requests` | User | Request `EXPORT` or `DELETE`. Deletion requires re-authentication |
-| GET | `/me/data-requests` | User | Status, and export download link when ready |
-| POST | `/me/data-requests/:id/cancel` | User | Cancel during the window |
+| GET | `/dashboard/student` | Signed in | Own profile summary, progress, streak, activity, tasks and recommendations |
+| GET | `/dashboard/admin` | `dashboard.admin` | Metrics and recent activity. Each activity list also needs its own read permission |
+| GET | `/dashboard/analytics?from&to` | `dashboard.admin` | Daily registrations, enrollments and activity in UTC, plus course popularity. One year at most |
+
+### Users
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/users` | `users.read` | Filters: `search`, `role`, `status`. Sort: `createdAt`, `email`, `lastLoginAt`, with `-` for descending |
+| GET | `/users/:id` | `users.read` | Details, enrollments and learning summary, never credentials |
+| PATCH | `/users/:id` | `users.manage` | `firstName`, `lastName` |
+| PATCH | `/users/:id/status` | `users.manage` | `ACTIVE` or `SUSPENDED`. Suspension ends all sessions |
+| GET | `/users/:id/activity` | `users.read` | Learning events. Administrative changes also need `audit.read` |
+| PATCH | `/users/:id/roles` | `roles.assign` | Replaces the person's roles |
+
+**Authority rules:** nobody can act on someone who holds permissions they lack, or assign or remove a role with permissions they lack. You can't give yourself a role, remove your own last administrative role, or suspend yourself. The last active super administrator can't be removed or suspended.
+
+### Roles and permissions
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/roles`, `/roles/:id` | `roles.read` | Roles, their permissions and user counts |
+| GET | `/permissions` | `roles.read` | Permissions by group |
+| PATCH | `/roles/:id/permissions` | `roles.manage` | Replaces a role's permissions |
+
+`SUPER_ADMIN` can't be changed. `roles.manage`, `settings.manage`, `ai.configure` and `ai.band_release` can't be given to any other role. `STUDENT` can hold only `content.read` and `attempts.own`.
+
+### Courses, sections and resources
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/courses` | Signed in | `scope=catalog` shows published courses. `scope=manage` needs a course permission. Filters: `search`, `status`, `moduleId`, `skill`, `examType`, `difficulty`, `sort` |
+| POST | `/courses` | `courses.manage` or `courses.manage_all` | Create a draft |
+| GET | `/courses/:id` | Signed in | Published, or archived if enrolled, or any status for its managers. Lesson content isn't included |
+| PATCH | `/courses/:id` | Course manager | Update. Only `courses.manage_all` can change the instructor |
+| DELETE | `/courses/:id` | Course manager | Soft delete, only if unpublished and never enrolled in |
+| POST | `/courses/:id/publish` | `courses.publish` and course manager | Validates content first, returning problems in `error.details` |
+| POST | `/courses/:id/unpublish` | `courses.publish` and course manager | **Added.** Back to draft, only with no active students |
+| POST | `/courses/:id/archive` | `courses.publish` and course manager | No new enrollments. Enrolled students keep access |
+| GET | `/courses/:id/history` | Course manager | **Added.** Publication history |
+| GET, POST | `/courses/:id/sections` | Signed in, course manager | List visible sections, or add one |
+| PATCH, DELETE | `/sections/:id` | Course manager | Update, reorder through `position`, show or hide, or archive |
+| POST | `/sections/:id/resources` | Course manager | Add a resource |
+| GET | `/resources/:id` | Enrolled or course manager | **Added.** Lesson content with next and previous IDs |
+| PATCH, DELETE | `/resources/:id` | Course manager | Update, reorder or soft delete |
+
+Instructors with `courses.manage` manage only courses they teach. `courses.manage_all` covers every course. Storage keys are never returned.
+
+### Learning modules
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/modules`, `/modules/:id` | Signed in | Published ones. All statuses with `modules.manage` |
+| POST, PATCH | `/modules`, `/modules/:id` | `modules.manage` | Create a draft, or update |
+| POST | `/modules/:id/publish`, `/modules/:id/archive` | `modules.manage` | Archiving is refused while published courses use it |
+
+### Enrollments, progress and history
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/enrollments` | `enrollments.read` | All enrollments. Filters: `search`, `status`, `courseId` |
+| POST | `/enrollments` | Signed in | Enroll in a published course. Duplicate returns 409. A premium course without a pass returns 403 `ENTITLEMENT_REQUIRED` |
+| GET | `/enrollments/me` | Signed in | Own enrollments with calculated progress |
+| GET | `/enrollments/:id` | Owner or `enrollments.read` | One enrollment |
+| PATCH | `/enrollments/:id` | Owner to cancel, or `enrollments.manage` | **Added.** Change status |
+| POST | `/progress` | Enrolled | `resourceId`, `status`, `minutesSpent`. A completed lesson can't regress |
+| GET | `/progress/me` | Signed in | Progress per course |
+| GET | `/history/me` | Signed in | Own learning history |
+
+### Study planner
+
+Own tasks only, written by the student. **Added**, because the student dashboard links to it. `GET` and `POST /planner/tasks`, and `PATCH` and `DELETE /planner/tasks/:id`.
+
+### Profile and settings
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET, PATCH | `/profile/me` | Own profile. Only `firstName` and `lastName` can be changed here |
+| PATCH | `/profile/preferences` | IELTS type, target band, exam date, study hours, daily goal, focus skills, locale, timezone, notification preferences |
+| PUT, GET, DELETE | `/profile/photo` | **Added.** Raw PNG, JPEG or WebP up to 2 MB, checked by its real bytes. Own photo only |
+| POST | `/profile/password` | **Added.** Needs the current password. Ends other sessions |
+| POST | `/profile/email` | **Added.** Needs the current password, and returns 202 either way. Changes only after the new address confirms through `/auth/verify-email` |
+| GET | `/profile/sessions` | Own sessions, never tokens |
+| DELETE | `/profile/sessions`, `/profile/sessions/:id` | End all other sessions, or one |
+
+### Notifications
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/notifications` | Signed in | Own list. Filters: `type`, `unread` |
+| GET | `/notifications/unread-count` | Signed in | **Added.** For the bell |
+| PATCH | `/notifications/:id/read`, `/notifications/read-all` | Signed in | Mark as read |
+| DELETE | `/notifications/:id` | Signed in | Dismiss |
+| GET, POST | `/admin/notifications` | `notifications.manage` | List or create announcements for `ALL` or one `ROLE`, as a draft or published, with optional expiry |
+| POST | `/admin/notifications/:id/publish`, `/archive` | `notifications.manage` | **Added.** Publish a draft, or archive |
+
+These are in-app only. No email or push delivery exists for them.
+
+### Administration
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/admin/audit-logs` | `audit.read` | Filters: `action`, `entityType`, `actorId`, `from`, `to`. Read-only |
+| GET | `/admin/settings` | `settings.read` | **Added.** Platform settings |
+| PATCH | `/admin/settings/:key` | `settings.manage` | **Added.** Validated per setting and audited |
 
 ## Public content
 
@@ -306,26 +405,6 @@ data: {"code":"AI_UNAVAILABLE","message":"The tutor couldn't finish that reply."
 | POST | `/mock-sessions/:id/advance` | User | Move on once the current stage is finished |
 | GET | `/mock-sessions/:id/report` | User | Section results, pending items marked. `overallBand` is `null` until all four skills exist and are releasable |
 
-## Analytics
-
-| Method | Path | Access | Release | Purpose |
-| --- | --- | --- | --- | --- |
-| GET | `/analytics/overview` | User | 1 | Listening and Reading results, releasable bands, time spent |
-| GET | `/analytics/activity` | User | 1 | Daily activity |
-| GET | `/analytics/band-trend` | User | 2 | Filters: `skill`, `from`, `to` |
-| GET | `/analytics/question-types` | User | 2 | Accuracy per type. Filter: `skill` |
-| GET | `/analytics/criteria-trend` | User | 2 | Writing and speaking criteria over time |
-
-## Study planner (R2)
-
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| POST | `/planner/plans` | Verified | Queue generation, returns 202 |
-| GET | `/planner/plans/active` | User | Current plan |
-| GET | `/planner/items` | User | Filters: `from`, `to` |
-| PATCH | `/planner/items/:id` | User | Complete or reschedule |
-| POST | `/planner/plans/active/replan` | Verified | Regenerate remaining days, returns 202 |
-
 ## Billing
 
 There are no recurring subscriptions. Students buy prepaid packages and passes. Webhook and return paths use the gateway's code, so another gateway adds a path value and an implementation.
@@ -366,17 +445,9 @@ Student recording uploads use the Speaking endpoints.
 | GET | `/marking/assignments/:id` | Marker | De-identified sample, with no AI result and no other marks |
 | POST | `/marking/assignments/:id/mark` | Marker | Submit once, with criterion bands and notes |
 
-## Notifications
+## Later administration
 
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| GET | `/notifications` | User | List |
-| POST | `/notifications/:id/read` | User | Mark one as read |
-| POST | `/notifications/read-all` | User | Mark all as read |
-
-## Admin
-
-All paths start with `/admin`. All writes create an audit log entry.
+Planned for later phases, and not implemented unless listed under Core platform. All paths start with `/admin`. All writes create an audit log entry.
 
 ### Content (Editor)
 

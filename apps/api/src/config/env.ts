@@ -28,6 +28,7 @@ const envSchema = z
     GOOGLE_CLIENT_SECRET: optionalText,
     RESEND_API_KEY: optionalText,
     EMAIL_FROM: optionalText,
+    STORAGE_LOCAL_DIR: optionalText,
   })
   .superRefine((env, ctx) => {
     if (env.JWT_ACCESS_SECRET === env.CSRF_SECRET) {

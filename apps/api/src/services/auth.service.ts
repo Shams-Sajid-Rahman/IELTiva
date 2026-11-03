@@ -26,6 +26,8 @@ type Deps = {
   tokens: TokenService;
   email: EmailProvider;
   logger: Pick<Logger, "warn" | "error">;
+  /** In-app notices for account events. Optional, so a failure here never blocks authentication. */
+  notifyUser?: (userId: string, message: { type: "SYSTEM" | "SECURITY"; title: string; body: string; link?: string }) => Promise<void>;
 };
 
 export type GoogleOutcome =
@@ -56,7 +58,17 @@ function toAuthUser(user: LoadedUser): AuthUser {
   };
 }
 
-export function createAuthService({ prisma, env, tokens, email, logger }: Deps) {
+export function createAuthService({ prisma, env, tokens, email, logger, notifyUser }: Deps) {
+  async function notify(userId: string, message: Parameters<NonNullable<Deps["notifyUser"]>>[1]) {
+    try {
+      await notifyUser?.(userId, message);
+    } catch (error) {
+      logger.error({ err: error }, "Account notification failed");
+    }
+  }
+
+  const WELCOME = { type: "SYSTEM" as const, title: "Welcome to IELTiva", body: "Choose your IELTS type in your profile, then browse the courses.", link: "/profile" };
+
   const cooldownStart = () => new Date(Date.now() - EMAIL_COOLDOWN_SECONDS * 1000);
 
   async function defaultRoleId() {
@@ -78,7 +90,7 @@ export function createAuthService({ prisma, env, tokens, email, logger }: Deps) 
     const token = randomToken();
     const now = new Date();
     await prisma.$transaction([
-      prisma.emailVerificationToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } }),
+      prisma.emailVerificationToken.updateMany({ where: { userId, usedAt: null, newEmail: null }, data: { usedAt: now } }),
       prisma.emailVerificationToken.create({
         data: {
           userId,
@@ -145,6 +157,7 @@ export function createAuthService({ prisma, env, tokens, email, logger }: Deps) 
         throw error;
       }
       const result = await sendVerification(user.id, user.email);
+      await notify(user.id, WELCOME);
       return { user: toAuthUser(user), verificationEmailDelivered: result.delivered };
     },
 
@@ -281,14 +294,22 @@ export function createAuthService({ prisma, env, tokens, email, logger }: Deps) 
           data: { usedAt: now },
         });
         if (claimed.count === 0) throw INVALID_TOKEN();
-        await tx.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: now } });
+        await tx.user.update({
+          where: { id: record.userId },
+          data: { emailVerifiedAt: now, ...(record.newEmail ? { email: record.newEmail } : {}) },
+        });
+      }).catch((error: unknown) => {
+        // Someone registered the address after this link was sent.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw INVALID_TOKEN();
+        throw error;
       });
+      if (record.newEmail) await notify(record.userId, { type: "SECURITY", title: "Email address changed", body: "Your account's email address was changed." });
     },
 
     async resendVerification(address: string) {
       const user = await prisma.user.findUnique({ where: { email: address } });
       if (!user || user.emailVerifiedAt || user.status !== "ACTIVE") return;
-      if (await prisma.emailVerificationToken.count({ where: { userId: user.id, createdAt: { gt: cooldownStart() } } })) return;
+      if (await prisma.emailVerificationToken.count({ where: { userId: user.id, newEmail: null, createdAt: { gt: cooldownStart() } } })) return;
       await sendVerification(user.id, user.email);
     },
 
@@ -327,6 +348,7 @@ export function createAuthService({ prisma, env, tokens, email, logger }: Deps) 
         await tx.refreshToken.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: now } });
         await tx.userSession.updateMany({ where: { userId: record.userId, revokedAt: null }, data: { revokedAt: now } });
       });
+      await notify(record.userId, { type: "SECURITY", title: "Password reset", body: "Your password was reset, and all devices were signed out." });
     },
 
     /**
@@ -367,6 +389,7 @@ export function createAuthService({ prisma, env, tokens, email, logger }: Deps) 
         emailVerifiedAt: new Date(),
         google: identity.subject,
       });
+      await notify(user.id, WELCOME);
       return { kind: "signed_in", userId: user.id };
     },
   };

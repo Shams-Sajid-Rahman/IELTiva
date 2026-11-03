@@ -1,6 +1,6 @@
 # IELTiva Development Roadmap
 
-**Status:** Phases 0 and 1 approved, with visual direction provisional. Phase 1B (backend foundation) is complete. Phase 2A (database architecture) is complete. Phase 2B (authentication backend) is complete. Phase 2C (frontend authentication) is complete. Phase 2D (security review) is complete and awaits owner review. Phase 3 hasn't started.
+**Status:** Phases 0 to 2D are complete. Phase 3 (core platform) is built and awaits owner review. Phase 4 (IELTS practice engine) hasn't started.
 
 Each phase ends with something testable and needs owner approval before the next begins. Durations are rough estimates for one full-time developer with AI assistance, and exclude content creation and marking.
 
@@ -9,16 +9,16 @@ Each phase ends with something testable and needs owner approval before the next
 | Stage | Scope | Rough duration |
 | --- | --- | --- |
 | Phase 0 | Planning | Finishing |
-| Release 1 | Phases 1 to 7 | About 3 months |
-| Release 2 | Phases 8 to 12 | About 2.5 months |
-| Release 3 | Phases 13 to 16 | Set after Release 2 data |
+| Release 1 | Phases 1 to 8 | About 3 months |
+| Release 2 | Phases 9 to 13 | About 2.5 months |
+| Release 3 | Phases 14 to 17 | Set after Release 2 data |
 
 Three tracks run alongside development and **don't block** it:
 
 | Track | Owner | Blocks |
 | --- | --- | --- |
 | A. Content and calibration | Owner, instructor, developer support | Public band scores only |
-| B. Speech trial | Developer, instructor | The decision to build on Azure in Phase 8 |
+| B. Speech trial | Developer, instructor | The decision to build on Azure in Phase 9 |
 | C. Legal and business | Owner | Public launch and final branding |
 
 ## Before Phase 1
@@ -49,7 +49,7 @@ Authorized by the owner as design system and frontend architecture first, with n
 
 **Done when:** a fresh clone runs web and API from documented commands, and tests pass against a real database.
 
-**Moved out by owner scope:** Redis, the worker and continuous integration. They must be in place before Phase 4, and continuous integration should come first.
+**Moved out by owner scope:** Redis, the worker and continuous integration. They must be in place before Phase 5, and continuous integration should come first.
 
 ### Phase 2A: Database architecture
 
@@ -69,7 +69,9 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 
 **Done when:** browser tests pass against the real API at every width and theme, and the owner approves.
 
-### Phase 2: Public website, authentication and dashboard (2 weeks)
+### Public website, still to schedule
+
+Authentication and dashboards are complete. The marketing pages below remain.
 
 - Design system, public pages, metadata, sitemap and draft legal pages
 - Band calculator and overall-band logic, tested with official examples
@@ -79,7 +81,13 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 
 **Done when:** a visitor can register and reach a dashboard. Tests cover token reuse, CSRF, rate limits and a deletion request end to end, and adding a test translation requires no code change.
 
-### Phase 3: Content system, Listening and Reading (3 weeks)
+### Phase 3: Core platform
+
+Student and admin dashboards, user and role management, course and module management, enrollment, progress, profiles, sessions, notifications, history and audit logs.
+
+**Done when:** backend, component and browser tests pass, and the owner approves.
+
+### Phase 4: IELTS practice engine, Listening and Reading (3 weeks)
 
 - Private storage and presigned URLs
 - Paper authoring with provenance, review and versioning, and validation against verified formats
@@ -88,7 +96,7 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 
 **Done when:** a student can complete a timed paper, survive a refresh and disconnection, and get correct results. Tests prove keys never reach the client before submission, and late answers are rejected.
 
-### Phase 4: AI service and Writing Assessment (2 to 3 weeks)
+### Phase 5: AI service and Writing Assessment (2 to 3 weeks)
 
 - AI service, route table, Anthropic provider, usage events and price table
 - BullMQ pipeline, prompts, schemas, retry and credit release
@@ -101,20 +109,20 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 
 **This phase doesn't wait for calibration results.** It finishes with bands hidden.
 
-### Phase 5: Basic mock tests (1 week)
+### Phase 6: Basic mock tests (1 week)
 
 - Mock builder, staged Listening, Reading and Writing flow, combined report
 
 **Done when:** a mock survives an interruption at every stage, and the report shows section results with no overall four-skill band.
 
-### Phase 6: Prepaid packages and payments (2 weeks)
+### Phase 7: Prepaid packages and payments (2 weeks)
 
 - Products, regional prices, coupons, `PaymentGateway`, SSLCommerz sandbox
 - Passes, credit ledger, expiry jobs and reminders, refunds, receipts
 
 **Done when:** tests cover duplicate IPNs, forged callbacks, wrong amounts and closed browsers. A second fake gateway passes the same test suite without core changes. A small real payment and refund succeed with owner approval.
 
-### Phase 7: Hardening and Release 1 launch (2 weeks)
+### Phase 8: Hardening and Release 1 launch (2 weeks)
 
 - Security review, access-control tests on every endpoint, dependency audit
 - Load test of autosave and queue, accessibility pass, backup restore test
@@ -127,29 +135,29 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 
 | Phase | Scope | Rough duration | Done when |
 | --- | --- | --- | --- |
-| 8 | Speaking recording, upload, speech provider, transcripts and separate pronunciation feedback | 3 weeks | Works on desktop and mobile Chrome and Safari, failed uploads can be retried, and no band calculation reads pronunciation data |
-| 9 | Three-criterion Speaking feedback, calibration runs, then Speaking in mocks | 2 weeks | No complete Speaking band appears until all four criteria are validated |
-| 10 | AI IELTS Tutor with streaming and read-only tools | 1 to 2 weeks | Replies stream reliably and one student can't reach another's data |
-| 11 | Personalized study plans | 1 week | Plans respect exam date and available hours |
-| 12 | Advanced analytics | 1 to 2 weeks | Figures match source data in tests |
+| 9 | Speaking recording, upload, speech provider, transcripts and separate pronunciation feedback | 3 weeks | Works on desktop and mobile Chrome and Safari, failed uploads can be retried, and no band calculation reads pronunciation data |
+| 10 | Three-criterion Speaking feedback, calibration runs, then Speaking in mocks | 2 weeks | No complete Speaking band appears until all four criteria are validated |
+| 11 | AI IELTS Tutor with streaming and read-only tools | 1 to 2 weeks | Replies stream reliably and one student can't reach another's data |
+| 12 | Personalized study plans | 1 week | Plans respect exam date and available hours |
+| 13 | Advanced analytics | 1 to 2 weeks | Figures match source data in tests |
 
 ## Release 3
 
 | Phase | Scope |
 | --- | --- |
-| 13 | Advanced calibration: drift monitoring, sampled human review, model comparison, more datasets |
-| 14 | More learning content, and Bangla interface if demand supports it |
-| 15 | International payments: gateway selection, tax handling, regional prices |
-| 16 | Performance optimization based on production measurements |
+| 14 | Advanced calibration: drift monitoring, sampled human review, model comparison, more datasets |
+| 15 | More learning content, and Bangla interface if demand supports it |
+| 16 | International payments: gateway selection, tax handling, regional prices |
+| 17 | Performance optimization based on production measurements |
 
 ## Track A: Content and calibration
 
 | Step | Who | Timing | Output |
 | --- | --- | --- | --- |
-| Agree content standards and copyright rules | Owner, instructor | Before Phase 3 | Written guide |
+| Agree content standards and copyright rules | Owner, instructor | Before Phase 4 | Written guide |
 | Write or review original seed papers and prompts | Instructor | During Phases 3 to 5 | At least 2 papers per skill and module used, and a prompt set |
-| Review band conversion table and rubric wording | Instructor | Before Phase 4 | Approved versions |
-| Collect consented Writing samples | Owner, instructor | Starts any time | De-identified samples in the agreed template, imported once Phase 4 tables exist |
+| Review band conversion table and rubric wording | Instructor | Before Phase 5 | Approved versions |
+| Collect consented Writing samples | Owner, instructor | Starts any time | De-identified samples in the agreed template, imported once Phase 5 tools exist |
 | Blind double marking and adjudication | Instructor and a second independent qualified marker, arranged by the owner | After intake | Approved samples |
 | Freeze dataset, run evaluation | Developer | After enough approved samples | Report per model, prompt and rubric |
 | Tune on tuning split, confirm on the test split | Developer, instructor | Repeats | Passing run, or a decision to continue |
@@ -169,9 +177,9 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 
 | Result | Action |
 | --- | --- |
-| Accurate and fair | Build Phase 8 on Azure |
+| Accurate and fair | Build Phase 9 on Azure |
 | Good transcripts, unreliable pronunciation | Ship transcript-based feedback, leave pronunciation out or clearly experimental |
-| Poor transcripts | Test another provider through `SpeechProvider` before Phase 8 |
+| Poor transcripts | Test another provider through `SpeechProvider` before Phase 9 |
 
 ## Track C: Legal and business
 
@@ -189,7 +197,7 @@ Sign-in pages, API client, session state, route guards and placeholder dashboard
 | Inaccurate AI bands | Hard gate, human-marked validation, estimate labels |
 | Second marker not yet arranged | Development continues, formal calibration waits |
 | Validation unfinished at launch | Feedback-only Writing, with packages sold on that basis |
-| Too little test content | Instructor track runs from Phase 3 |
+| Too little test content | Instructor track runs from Phase 4 |
 | Trademark or copyright complaint | Early advice, original content, provenance records |
 | AI and speech costs exceed revenue | Usage tracking, credits, spend alerts, price from measurements |
 | Azure unfair to local accents | Trial first, pronunciation kept separate from bands |

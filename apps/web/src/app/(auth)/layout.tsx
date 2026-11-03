@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { SiteShell } from "@/components/layout/site-shell";
 import { Reveal } from "@/components/motion/reveal";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
   const points = [t("panelPoint1"), t("panelPoint2"), t("panelPoint3")];
 
   return (
+    <SiteShell>
     <div className="grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[1fr_minmax(0,28rem)] xl:grid-cols-[1fr_32rem]">
       <div className="flex justify-center px-4 py-10 sm:px-6 sm:py-16">
         <Reveal className="w-full max-w-md">{children}</Reveal>
@@ -31,5 +33,6 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         </ul>
       </aside>
     </div>
+    </SiteShell>
   );
 }

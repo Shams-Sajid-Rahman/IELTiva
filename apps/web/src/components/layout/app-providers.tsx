@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/features/auth/auth-provider";
+import { QueryProvider } from "@/features/platform/query-provider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -13,7 +14,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <MotionConfig reducedMotion="user">
         <TooltipProvider>
           <AuthProvider>
-            {children}
+            <QueryProvider>{children}</QueryProvider>
             <Toaster />
           </AuthProvider>
         </TooltipProvider>

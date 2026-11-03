@@ -96,7 +96,7 @@ describe("migrations", () => {
     expect(Number(row.tables)).toBe(57);
     expect(Number(row.fks)).toBeGreaterThan(70);
     expect(Number(row.indexes)).toBeGreaterThan(130);
-    expect(Number(row.triggers)).toBe(11);
+    expect(Number(row.triggers)).toBe(12);
   });
 
   it("include every important named index", async () => {
@@ -118,7 +118,7 @@ describe("migrations", () => {
 describe("seed", () => {
   it("creates defaults and no users, without duplicating on repeat runs", async () => {
     const first = await counts();
-    expect(first).toEqual({ roles: 6, permissions: 18, mappings: expect.any(Number), modules: 4, settings: 6, gateways: 1, aiConfigs: 3, users: 0 });
+    expect(first).toEqual({ roles: 6, permissions: 29, mappings: expect.any(Number), modules: 5, settings: 7, gateways: 1, aiConfigs: 3, users: 0 });
     await runSeed(prisma, seedEnv);
     await runSeed(prisma, seedEnv);
     expect(await counts()).toEqual(first);
@@ -133,6 +133,15 @@ describe("seed", () => {
     expect(configs.every((c) => c.bandVisibility === "HIDDEN" && !c.isActive)).toBe(true);
     const gateway = await prisma.paymentGateway.findUniqueOrThrow({ where: { code: "sslcommerz" } });
     expect(gateway.isEnabled).toBe(false);
+  });
+
+  it("doesn't restore a permission an administrator removed", async () => {
+    const instructor = await prisma.role.findUniqueOrThrow({ where: { code: "INSTRUCTOR" }, include: { permissions: true } });
+    const removed = instructor.permissions[0]!;
+    await prisma.rolePermission.delete({ where: { roleId_permissionId: { roleId: removed.roleId, permissionId: removed.permissionId } } });
+    await runSeed(prisma, seedEnv);
+    expect(await prisma.rolePermission.count({ where: { roleId: removed.roleId, permissionId: removed.permissionId } })).toBe(0);
+    await prisma.rolePermission.create({ data: { roleId: removed.roleId, permissionId: removed.permissionId } });
   });
 
   it("gives the super admin every permission and students only their own", async () => {

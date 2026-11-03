@@ -9,6 +9,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
   const t = useTranslations("errors");
 
   return (
+    <main id="main" tabIndex={-1} className="flex-1 outline-none">
     <Container className="py-24">
       <EmptyState headingLevel={1}
         title={t("errorTitle")}
@@ -16,5 +17,6 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
         action={<Button onClick={reset}>{t("retry")}</Button>}
       />
     </Container>
+    </main>
   );
 }

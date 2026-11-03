@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 2D, security review.** The database and sign-in system are built and reviewed, with placeholder dashboards. Learning features aren't built yet, and there has been no independent security audit.
+> **Status: Phase 3, core platform.** Student and admin dashboards, user and role management, courses, enrollment, progress, profiles and notifications are built. The IELTS practice engine, AI and payments aren't built yet, and there has been no independent security audit.
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -68,6 +68,7 @@ Open http://localhost:3000, and http://localhost:3000/design-system for the comp
 | `npm run typecheck` | Check types |
 | `npm run lint` | Check code style |
 | `npm test` | API and component tests |
+| `npm run test:db` | Database, security and core platform integration tests |
 | `npm run build` | Production build of shared, API and web |
 | `npm run build:e2e`, then `npm run test:e2e` | Browser, responsive and accessibility tests against the real API. Needs PostgreSQL running, `npm run build -w @ieltiva/api`, and `ieltiva_test` migrated and seeded. Uses installed Chrome, and updates `docs/screenshots` |
 
@@ -116,6 +117,17 @@ Prisma 7 reads its connection from `apps/api/prisma.config.ts`, not the schema, 
 | Load default roles, permissions, modules and settings. Safe to repeat | `npm run db:seed` |
 
 Don't use `prisma migrate reset` on any database holding data you need.
+
+### First administrator
+
+Set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` in `.env`, then run these. Remove the password from `.env` afterwards.
+
+```powershell
+npm run db:seed
+npm run admin:create
+```
+
+Open http://localhost:3000/admin after signing in. See [API_DOCUMENTATION.md](API_DOCUMENTATION.md#core-platform) for the permission each feature needs.
 
 ### Authentication flow
 

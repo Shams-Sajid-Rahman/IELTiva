@@ -9,4 +9,5 @@ export type AppDependencies = {
   logger: Logger;
   checkDatabase: DatabaseCheck;
   authRouter?: Router;
+  platformRouter?: Router;
 };

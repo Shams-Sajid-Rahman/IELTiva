@@ -16,3 +16,4 @@ dist/
 *.log
 tmp/
 temp/
+.local-storage/

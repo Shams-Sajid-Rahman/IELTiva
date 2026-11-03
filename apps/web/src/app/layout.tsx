@@ -1,26 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { AppProviders } from "@/components/layout/app-providers";
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", display: "swap" });
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: { default: "IELTiva", template: "%s | IELTiva" },
-  description: "AI-assisted IELTS preparation.",
+  description: "Prepare Smarter. Achieve Higher. AI-assisted IELTS preparation.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfaf7" },
-    { media: "(prefers-color-scheme: dark)", color: "#10141f" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f7fc" },
+    { media: "(prefers-color-scheme: dark)", color: "#101d3a" },
   ],
 };
 
@@ -29,7 +27,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const t = await getTranslations("common");
 
   return (
-    <html lang={locale} className={`${inter.variable} ${fraunces.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`${inter.variable} ${manrope.variable}`} suppressHydrationWarning>
       <body className="flex min-h-dvh flex-col">
         <NextIntlClientProvider>
           <AppProviders>
@@ -39,11 +37,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             >
               {t("skipToContent")}
             </a>
-            <SiteHeader />
-            <main id="main" tabIndex={-1} className="flex-1 outline-none">
-              {children}
-            </main>
-            <SiteFooter />
+            {children}
           </AppProviders>
         </NextIntlClientProvider>
       </body>
