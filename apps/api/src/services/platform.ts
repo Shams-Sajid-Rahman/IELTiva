@@ -13,7 +13,9 @@ import { createNotifier } from "./notifier.js";
 import { createOperationsService } from "./ops/operations.service.js";
 import { createPrivacyService } from "./privacy/privacy.service.js";
 import type { JobQueues } from "./queue/jobs.js";
+import { createReleaseService, type ReleaseService } from "./release/release.service.js";
 import { createReportService } from "./reports/report.service.js";
+import { createInstructorReviewService } from "./review/instructor-review.service.js";
 import { BILLING_OFF, createBillingRuntime, type BillingEnv } from "./billing/runtime.js";
 import { createAiRuntime, type AiEnv } from "./ai/runtime.js";
 import { createCourseService } from "./course.service.js";
@@ -50,11 +52,13 @@ type Deps = {
   redisUrl?: string | undefined;
   /** Checks uploads with ffmpeg. Left out in tests, which use small placeholder files. */
   audioProbe?: (data: Buffer) => Promise<AudioInfo>;
+  /** Left out in tests, where nothing is restricted. */
+  release?: ReleaseService;
 };
 
 const AI_OFF: AiEnv = { AI_PROVIDER: "anthropic", ANTHROPIC_API_KEY: undefined, AI_MODEL_DEFAULT: "", AI_MODEL_COMPLEX: "", AI_MODEL_LIGHT: "", AI_TIMEOUT_SECONDS: 300, AI_DAILY_SPEND_ALERT_USD: undefined, AI_DAILY_SPEND_LIMIT_USD: undefined, REDIS_URL: undefined, AZURE_SPEECH_KEY: undefined, AZURE_SPEECH_REGION: undefined, AZURE_SPEECH_LANGUAGE: "en-GB", AI_ALLOWED_MODELS: undefined, AI_USER_DAILY_TOKEN_LIMIT: 0 };
 
-export function createPlatformServices({ prisma, env, email, logger, storage, auth, notifications, aiEnv, billingEnv, cache, redis = null, queues = null, redisUrl, audioProbe }: Deps) {
+export function createPlatformServices({ prisma, env, email, logger, storage, auth, notifications, aiEnv, billingEnv, cache, redis = null, queues = null, redisUrl, audioProbe, release = createReleaseService(prisma, { channel: "test" }) }: Deps) {
   const readCache = cache ?? createCache({ maxEntries: 0 });
   const notify = createNotifier(notifications, queues);
   const operations = createOperationsService({ prisma, redis, redisUrl, storage, cache: readCache });
@@ -73,6 +77,8 @@ export function createPlatformServices({ prisma, env, email, logger, storage, au
       admin: createAdminAnalyticsService({ prisma, cache: readCache, revenue: billing.revenue }),
     },
     operations,
+    release,
+    reviews: createInstructorReviewService({ prisma, storage, notify }),
     reports,
     privacy,
     resourceFiles: createResourceFileService({ prisma, storage, courses }),
@@ -82,7 +88,7 @@ export function createPlatformServices({ prisma, env, email, logger, storage, au
       cache,
       onRecordingSaved: queues ? (submissionId) => queues.add("audio.process-recording", { submissionId }, `${submissionId}-${Date.now()}`) : undefined,
     }),
-    examAdmin: createExamAdminService(prisma, storage, audioProbe),
+    examAdmin: createExamAdminService(prisma, storage, audioProbe, release.channel === "test" ? undefined : release.approvalRequired),
     courses,
     dashboard: createDashboardService(prisma, notifications),
     enrollments: createEnrollmentService(prisma, notifications),

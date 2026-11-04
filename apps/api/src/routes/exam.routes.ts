@@ -2,6 +2,7 @@ import {
   adminExamListQuerySchema,
   attemptListQuerySchema,
   audioQuerySchema,
+  examVersionReviewSchema,
   audioUpdateSchema,
   examBodySchema,
   examListQuerySchema,
@@ -130,6 +131,9 @@ export function createExamRouter({ attempts: a, examAdmin: x }: ExamServices) {
   r.get("/admin/exam-versions/:id", write, async (req, res) => sendSuccess(res, "Exam version", await x.getVersion(param(req, "id"))));
   r.patch("/admin/exam-versions/:id", write, async (req, res) => sendSuccess(res, "Version updated", await x.updateVersion(actorOf(req), param(req, "id"), examVersionUpdateSchema.parse(req.body))));
   r.get("/admin/exam-versions/:id/validation", write, async (req, res) => sendSuccess(res, "Validation", await x.validate(param(req, "id"))));
+  r.post("/admin/exam-versions/:id/submit-review", write, async (req, res) => sendSuccess(res, "Sent for review", await x.submitForReview(actorOf(req), param(req, "id"))));
+  r.post("/admin/exam-versions/:id/withdraw-review", write, async (req, res) => sendSuccess(res, "Withdrawn from review", await x.withdrawFromReview(actorOf(req), param(req, "id"))));
+  r.post("/admin/exam-versions/:id/review", requirePermission("content.review"), async (req, res) => sendSuccess(res, "Review saved", await x.reviewVersion(actorOf(req), param(req, "id"), examVersionReviewSchema.parse(req.body))));
   r.post("/admin/exam-versions/:id/publish", publish, async (req, res) => sendSuccess(res, "Version published", await x.publish(actorOf(req), param(req, "id"))));
   r.post("/admin/exam-versions/:id/archive", publish, async (req, res) => sendSuccess(res, "Version archived", await x.archive(actorOf(req), param(req, "id"))));
 

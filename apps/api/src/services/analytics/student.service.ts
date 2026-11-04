@@ -166,7 +166,7 @@ export function createStudentAnalyticsService(prisma: PrismaClient, cache: Cache
    * bands whose exact model and prompt passed the release gate. Speaking AI bands are never included.
    */
   async function bandPoints(userId: string, since: Date): Promise<{ points: BandPoint[]; criteria: { skill: "WRITING" | "SPEAKING"; criterion: string; average: number; samples: number; kind: "ESTIMATED" | "REVIEWED" }[] }> {
-    const [sections, attempts, results, releases] = await Promise.all([
+    const [sections, attempts, results, releases, reviews] = await Promise.all([
       prisma.sectionAttempt.findMany({ where: { bandScore: { not: null }, submittedAt: { gte: since }, examAttempt: { userId } }, select: { bandScore: true, submittedAt: true, section: { select: { skill: true, title: true } } }, orderBy: { submittedAt: "asc" } }),
       prisma.examAttempt.findMany({ where: { userId, overallBand: { not: null }, submittedAt: { gte: since } }, select: { overallBand: true, submittedAt: true, examVersion: { select: { exam: { select: { title: true } } } } }, orderBy: { submittedAt: "asc" } }),
       prisma.assessmentResult.findMany({
@@ -190,6 +190,14 @@ export function createStudentAnalyticsService(prisma: PrismaClient, cache: Cache
         },
       }),
       prisma.bandRelease.findMany({ where: { visibility: "PUBLIC" }, select: { modelConfigurationId: true, promptVersionId: true, examType: true, taskType: true } }),
+      prisma.instructorReview.findMany({
+        where: {
+          status: "COMPLETED",
+          completedAt: { gte: since },
+          OR: [{ writingSubmission: { sectionAttempt: { examAttempt: { userId } } } }, { speakingSubmission: { sectionAttempt: { examAttempt: { userId } } } }],
+        },
+        select: { writingSubmissionId: true, overallBand: true, criterionBands: true, completedAt: true },
+      }),
     ]);
 
     const released = (row: (typeof results)[number]) => {
@@ -218,6 +226,17 @@ export function createStudentAnalyticsService(prisma: PrismaClient, cache: Cache
         const key = `${skill}:${score.criterion}:${kind}`;
         const total = totals.get(key) ?? { skill, criterion: score.criterion, kind, sum: 0, samples: 0 };
         total.sum += Number(score.band);
+        total.samples += 1;
+        totals.set(key, total);
+      }
+    }
+    for (const review of reviews) {
+      const skill = review.writingSubmissionId ? ("WRITING" as const) : ("SPEAKING" as const);
+      if (review.overallBand !== null) points.push({ date: review.completedAt!.toISOString(), skill, band: Number(review.overallBand), kind: "REVIEWED", source: "Instructor review" });
+      for (const [criterion, band] of Object.entries((review.criterionBands ?? {}) as Record<string, number>)) {
+        const key = `${skill}:${criterion}:REVIEWED`;
+        const total = totals.get(key) ?? { skill, criterion, kind: "REVIEWED" as const, sum: 0, samples: 0 };
+        total.sum += band;
         total.samples += 1;
         totals.set(key, total);
       }

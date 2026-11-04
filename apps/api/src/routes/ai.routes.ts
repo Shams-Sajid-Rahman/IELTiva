@@ -9,13 +9,16 @@ import {
   explainSchema,
   modelSetSchema,
   pageQuerySchema,
+  pronunciationCheckSchema,
   tutorMessageSchema,
 } from "@ieltiva/shared";
-import { Router, type Request, type RequestHandler } from "express";
+import express, { Router, type Request, type RequestHandler } from "express";
 import { z } from "zod";
 import { requirePermission } from "../middleware/authenticate.js";
 import { userRateLimit } from "../middleware/rate-limit.js";
 import type { AiRuntime } from "../services/ai/runtime.js";
+import type { ReleaseService } from "../services/release/release.service.js";
+import { requireFlag } from "./release.routes.js";
 import { toAppError } from "../services/ai/tutor.service.js";
 import type { Actor } from "../types/platform.js";
 import { sendPage, sendSuccess } from "../utils/api-response.js";
@@ -32,8 +35,11 @@ const param = (req: Request, name: string) => uuid.parse(req.params[name]);
 /** Stops a stuck client from sending the same AI request over and over. */
 const aiLimit = userRateLimit("ai", 60_000, 20);
 
-export function createAiRouter({ assessment: a, tutor: t, calibration: c, consents, models, ai }: AiRuntime) {
+export function createAiRouter({ assessment: a, tutor: t, calibration: c, consents, models, ai }: AiRuntime, controls: Pick<ReleaseService, "isEnabled">) {
   const r = Router();
+  const writingOn = requireFlag(controls, "ai.writing_feedback", "Writing feedback is paused right now.");
+  const speakingOn = requireFlag(controls, "ai.speaking_feedback", "Speaking feedback is paused right now.");
+  const tutorOn = requireFlag(controls, "ai.tutor", "The AI tutor is paused right now.");
   const own: RequestHandler = requirePermission("attempts.own");
   const mark: RequestHandler = requirePermission("calibration.mark");
   const manage: RequestHandler = requirePermission("calibration.manage");
@@ -51,24 +57,24 @@ export function createAiRouter({ assessment: a, tutor: t, calibration: c, consen
   });
 
   // Assessment
-  r.post("/writing/submissions/:id/assessment", own, aiLimit, async (req, res) => sendSuccess(res, "Feedback requested", await a.requestWriting(actorOf(req), param(req, "id")), 202));
+  r.post("/writing/submissions/:id/assessment", own, writingOn, aiLimit, async (req, res) => sendSuccess(res, "Feedback requested", await a.requestWriting(actorOf(req), param(req, "id")), 202));
   r.get("/writing/submissions/:id/assessment", own, async (req, res) => sendSuccess(res, "Writing feedback", await a.getWriting(actorOf(req), param(req, "id"))));
-  r.post("/speaking/submissions/:id/assessment", own, aiLimit, async (req, res) => sendSuccess(res, "Feedback requested", await a.requestSpeaking(actorOf(req), param(req, "id")), 202));
+  r.post("/speaking/submissions/:id/assessment", own, speakingOn, aiLimit, async (req, res) => sendSuccess(res, "Feedback requested", await a.requestSpeaking(actorOf(req), param(req, "id")), 202));
   r.get("/speaking/submissions/:id/assessment", own, async (req, res) => sendSuccess(res, "Speaking feedback", await a.getSpeaking(actorOf(req), param(req, "id"))));
   r.get("/ai/jobs/:id", own, async (req, res) => sendSuccess(res, "Job status", await a.getJob(actorOf(req), param(req, "id"))));
 
   // Tutor
   r.get("/tutor/conversations", own, async (req, res) => sendPage(res, "Conversations", await t.list(actorOf(req), pageQuerySchema.parse(req.query))));
-  r.post("/tutor/conversations", own, aiLimit, async (req, res) => sendSuccess(res, "Conversation started", await t.create(actorOf(req)), 201));
+  r.post("/tutor/conversations", own, tutorOn, aiLimit, async (req, res) => sendSuccess(res, "Conversation started", await t.create(actorOf(req)), 201));
   r.get("/tutor/conversations/:id", own, async (req, res) => sendSuccess(res, "Conversation", await t.get(actorOf(req), param(req, "id"))));
   r.delete("/tutor/conversations/:id", own, async (req, res) => {
     await t.remove(actorOf(req), param(req, "id"));
     sendSuccess(res, "Conversation deleted", null);
   });
-  r.post("/tutor/explain", own, aiLimit, async (req, res) => sendSuccess(res, "Explanation", await t.explain(actorOf(req), explainSchema.parse(req.body))));
+  r.post("/tutor/explain", own, tutorOn, aiLimit, async (req, res) => sendSuccess(res, "Explanation", await t.explain(actorOf(req), explainSchema.parse(req.body))));
 
   /** Streams the reply as server-sent events. Errors before the first byte use the normal format, and later ones an error event. */
-  r.post("/tutor/conversations/:id/messages", own, aiLimit, async (req, res, next) => {
+  r.post("/tutor/conversations/:id/messages", own, tutorOn, aiLimit, async (req, res, next) => {
     const body = tutorMessageSchema.parse(req.body);
     const controller = new AbortController();
     res.on("close", () => {
@@ -112,6 +118,14 @@ export function createAiRouter({ assessment: a, tutor: t, calibration: c, consen
   r.post("/admin/calibration/samples/:id/marks", mark, async (req, res) => sendSuccess(res, "Mark saved", await c.mark(actorOf(req), param(req, "id"), calibrationMarkSchema.parse(req.body)), 201));
   r.get("/admin/calibration/datasets/:id/adjudication", manage, async (req, res) => sendPage(res, "Samples to adjudicate", await c.listForAdjudication(param(req, "id"), pageQuerySchema.parse(req.query))));
   r.post("/admin/calibration/samples/:id/adjudication", manage, async (req, res) => sendSuccess(res, "Adjudication saved", await c.adjudicate(actorOf(req), param(req, "id"), calibrationMarkSchema.parse(req.body)), 201));
+  r.put("/admin/calibration/samples/:id/audio", manage, express.raw({ type: () => true, limit: "51mb" }), async (req, res) => sendSuccess(res, "Recording saved", await c.uploadSampleAudio(actorOf(req), param(req, "id"), Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)), 201));
+  r.get("/admin/calibration/samples/:id/audio", (req, res, next) => (req.auth?.permissions.includes("calibration.mark") ? next() : manage(req, res, next)), async (req, res) => {
+    const file = await c.readSampleAudio(param(req, "id"));
+    res.setHeader("Content-Type", file.contentType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(file.data);
+  });
+  r.post("/admin/calibration/datasets/:id/pronunciation-check", manage, async (req, res) => sendSuccess(res, "Check started", await c.startPronunciationCheck(actorOf(req), param(req, "id"), pronunciationCheckSchema.parse(req.body).split), 202));
   r.post("/admin/calibration/datasets/:id/runs", manage, async (req, res) => sendSuccess(res, "Run started", await c.startRun(actorOf(req), param(req, "id"), calibrationRunSchema.parse(req.body)), 202));
   r.post("/admin/calibration/runs/:id/approve", requirePermission("assessments.review"), async (req, res) => sendSuccess(res, "Run approved", await c.approveRun(actorOf(req), param(req, "id"))));
   r.post("/admin/calibration/runs/:id/release", release, async (req, res) => sendSuccess(res, "Release updated", await c.setRelease(actorOf(req), param(req, "id"), bandReleaseSchema.parse(req.body).visibility)));

@@ -2,7 +2,7 @@ import type { PrismaClient } from "../src/generated/prisma/client.js";
 import { AITier } from "../src/generated/prisma/enums.js";
 
 const ROLE_MAPPING_SETTING = "seed.role_mapping_version";
-const ROLE_MAPPING_VERSION = 4;
+const ROLE_MAPPING_VERSION = 5;
 
 const roles = [
   { code: "STUDENT", name: "Student", description: "Learner using purchased and free practice" },
@@ -30,6 +30,8 @@ const permissions = [
   ["refunds.manage", "Approve, reject and send refunds"],
   ["gateways.manage", "Switch payment gateways on and off"],
   ["operations.read", "View system health, queues and error counts"],
+  ["release.manage", "Change feature switches, beta access and maintenance messages"],
+  ["support.manage", "Handle feedback and incident records"],
   ["ai.usage.read", "View AI usage and cost"],
   ["ai.configure", "Change AI model configuration"],
   ["ai.band_release", "Approve public band releases"],
@@ -60,6 +62,7 @@ const admin = [
   "payments.manage",
   "refunds.manage",
   "operations.read",
+  "support.manage",
   "ai.usage.read",
   "audit.read",
   "dashboard.admin",
@@ -74,7 +77,7 @@ const admin = [
 
 const rolePermissions: Record<string, string[]> = {
   STUDENT: ["content.read", "attempts.own"],
-  INSTRUCTOR: ["content.read", "assessments.review", "courses.manage", "courses.publish"],
+  INSTRUCTOR: ["content.read", "content.write", "content.review", "assessments.review", "courses.manage", "courses.publish"],
   MARKER: ["calibration.mark"],
   EDITOR: editor,
   ADMIN: admin,

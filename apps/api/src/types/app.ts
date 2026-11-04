@@ -12,4 +12,5 @@ export type AppDependencies = {
   platformRouter?: Router;
   paymentCallbackRouter?: Router;
   probeRouter?: Router;
+  publicRouter?: Router;
 };

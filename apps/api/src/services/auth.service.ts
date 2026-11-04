@@ -27,6 +27,11 @@ type Deps = {
   email: EmailProvider;
   logger: Pick<Logger, "warn" | "error">;
   /** In-app notices for account events. Optional, so a failure here never blocks authentication. */
+  /** Release controls: who may create an account or sign in. Left out, everyone may. */
+  accessGate?: {
+    canRegister: (email: string) => Promise<{ allowed: boolean; message: string }>;
+    canSignIn: (userId: string, email: string) => Promise<{ allowed: boolean; message: string }>;
+  };
   notifyUser?: (userId: string, message: { type: "SYSTEM" | "SECURITY"; title: string; body: string; link?: string }) => Promise<void>;
 };
 
@@ -58,7 +63,7 @@ function toAuthUser(user: LoadedUser): AuthUser {
   };
 }
 
-export function createAuthService({ prisma, env, tokens, email, logger, notifyUser }: Deps) {
+export function createAuthService({ prisma, env, tokens, email, logger, notifyUser, accessGate }: Deps) {
   async function notify(userId: string, message: Parameters<NonNullable<Deps["notifyUser"]>>[1]) {
     try {
       await notifyUser?.(userId, message);
@@ -146,6 +151,8 @@ export function createAuthService({ prisma, env, tokens, email, logger, notifyUs
 
   return {
     async register(input: { firstName: string; lastName: string; email: string; password: string }) {
+      const gate = await accessGate?.canRegister(input.email);
+      if (gate && !gate.allowed) throw new AppError(403, "FORBIDDEN", gate.message);
       const passwordHash = await hashPassword(input.password);
       let user: LoadedUser;
       try {
@@ -183,6 +190,8 @@ export function createAuthService({ prisma, env, tokens, email, logger, notifyUs
         throw INVALID_CREDENTIALS();
       }
       if (user.status !== "ACTIVE") throw new AppError(403, "FORBIDDEN", "This account isn't available. Please contact support.");
+      const gate = await accessGate?.canSignIn(user.id, user.email);
+      if (gate && !gate.allowed) throw new AppError(403, "FORBIDDEN", gate.message);
 
       const session = await issueSession(user.id, meta);
       const loaded = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: userInclude });
@@ -375,12 +384,16 @@ export function createAuthService({ prisma, env, tokens, email, logger, notifyUs
       }
 
       if (existingLink) {
+        const gate = await accessGate?.canSignIn(existingLink.userId, existingLink.user.email);
+        if (gate && !gate.allowed) return { kind: "rejected", reason: "account_unavailable" };
         return existingLink.user.status === "ACTIVE" ? { kind: "signed_in", userId: existingLink.userId } : { kind: "rejected", reason: "account_unavailable" };
       }
       if (!identity.emailVerified) return { kind: "rejected", reason: "email_not_verified" };
 
       const sameEmail = await prisma.user.findUnique({ where: { email: identity.email } });
       if (sameEmail) return { kind: "rejected", reason: "account_exists" };
+      const gate = await accessGate?.canRegister(identity.email);
+      if (gate && !gate.allowed) return { kind: "rejected", reason: "account_unavailable" };
 
       const user = await createUser({
         email: identity.email,

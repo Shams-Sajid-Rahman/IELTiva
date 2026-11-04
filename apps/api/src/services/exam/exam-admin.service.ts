@@ -97,7 +97,7 @@ export function validateVersion(version: Tree) {
   return { errors, warnings };
 }
 
-export function createExamAdminService(prisma: PrismaClient, storage: PrivateStorage, probe?: (data: Buffer) => Promise<AudioInfo>) {
+export function createExamAdminService(prisma: PrismaClient, storage: PrivateStorage, probe?: (data: Buffer) => Promise<AudioInfo>, approvalRequired?: () => Promise<boolean>) {
   const loadTree = async (versionId: string): Promise<Tree> => {
     const version = await prisma.examVersion.findUnique({ where: { id: versionId }, include: { ...versionTree, exam: { select: { examType: true, isMock: true } } } });
     if (!version) throw new AppError(404, "NOT_FOUND", "This exam version wasn't found.");
@@ -106,9 +106,11 @@ export function createExamAdminService(prisma: PrismaClient, storage: PrivateSto
 
   /** Published versions never change, and the database enforces this too. Authors make a new version instead. */
   const assertDraft = async (versionId: string) => {
-    const version = await prisma.examVersion.findUnique({ where: { id: versionId }, select: { publishedAt: true } });
+    const version = await prisma.examVersion.findUnique({ where: { id: versionId }, select: { publishedAt: true, status: true } });
     if (!version) throw new AppError(404, "NOT_FOUND", "This exam version wasn't found.");
     if (version.publishedAt) throw new AppError(409, "CONFLICT", "Published versions can't be changed. Create a new version.");
+    // What's approved has to be what's published, so content stays fixed during review.
+    if (version.status === "IN_REVIEW") throw new AppError(409, "CONFLICT", "This version is being reviewed. Withdraw it from review to make changes.");
   };
 
   const sectionVersion = async (sectionId: string) => {
@@ -213,6 +215,10 @@ export function createExamAdminService(prisma: PrismaClient, storage: PrivateSto
       if (version.publishedAt) throw new AppError(409, "CONFLICT", "This version is already published.");
       const check = validateVersion(version);
       if (check.errors.length) throw new AppError(422, "VALIDATION_ERROR", "This version isn't ready to publish.", check.errors.map((message) => ({ path: "version", message })));
+      const approval = await prisma.examVersion.findUniqueOrThrow({ where: { id: versionId }, select: { status: true, approvedAt: true, reviewedById: true } });
+      if (approvalRequired && (await approvalRequired()) && !(approval.status === "IN_REVIEW" && approval.approvedAt && approval.reviewedById)) {
+        throw new AppError(409, "CONFLICT", "This version needs a reviewer's approval before it can be published.");
+      }
       const updated = await prisma.$transaction(async (tx) => {
         // Students get the newest published version. Older ones stay readable for the attempts that used them.
         const previous = await tx.examVersion.findMany({ where: { examId: version.examId, status: "PUBLISHED" }, select: { id: true } });
@@ -220,12 +226,61 @@ export function createExamAdminService(prisma: PrismaClient, storage: PrivateSto
           await tx.examVersion.update({ where: { id: row.id }, data: { status: "ARCHIVED", archivedAt: new Date() } });
           await tx.contentPublicationHistory.create({ data: { examVersionId: row.id, actorId: actor.userId, action: "ARCHIVED", fromStatus: "PUBLISHED", toStatus: "ARCHIVED" } });
         }
-        const result = await tx.examVersion.update({ where: { id: versionId }, data: { status: "PUBLISHED", publishedAt: new Date(), reviewedById: actor.userId } });
+        const result = await tx.examVersion.update({ where: { id: versionId }, data: { status: "PUBLISHED", publishedAt: new Date(), reviewedById: approval.reviewedById ?? actor.userId } });
         await tx.contentPublicationHistory.create({ data: { examVersionId: versionId, actorId: actor.userId, action: "PUBLISHED", fromStatus: version.status, toStatus: "PUBLISHED" } });
         await recordAudit(tx, actor, { action: "exam_version.publish", entityType: "exam_version", entityId: versionId });
         return result;
       });
       return { version: updated, warnings: check.warnings };
+    },
+
+    /** The author says it's ready. It has to pass the same checks as publishing, and it can't be edited from here on. */
+    async submitForReview(actor: Actor, versionId: string) {
+      const version = await loadTree(versionId);
+      if (version.publishedAt) throw new AppError(409, "CONFLICT", "This version is already published.");
+      if (version.status === "IN_REVIEW") throw new AppError(409, "CONFLICT", "This version is already in review.");
+      const check = validateVersion(version);
+      if (check.errors.length) throw new AppError(422, "VALIDATION_ERROR", "This version isn't ready for review.", check.errors.map((message) => ({ path: "version", message })));
+      return prisma.$transaction(async (tx) => {
+        const result = await tx.examVersion.update({ where: { id: versionId }, data: { status: "IN_REVIEW", submittedAt: new Date(), approvedAt: null, reviewNote: null } });
+        await tx.contentPublicationHistory.create({ data: { examVersionId: versionId, actorId: actor.userId, action: "SUBMITTED_FOR_REVIEW", fromStatus: "DRAFT", toStatus: "IN_REVIEW" } });
+        await recordAudit(tx, actor, { action: "exam_version.submit_review", entityType: "exam_version", entityId: versionId });
+        return result;
+      });
+    },
+
+    /** A second person's decision. Only the real reviewer's own action records an approval, and an author can't approve their own version. */
+    async reviewVersion(actor: Actor, versionId: string, input: { decision: "APPROVE" | "REQUEST_CHANGES"; note?: string | null | undefined }) {
+      const version = await prisma.examVersion.findUnique({ where: { id: versionId }, select: { status: true, createdById: true, approvedAt: true } });
+      if (!version) throw new AppError(404, "NOT_FOUND", "This exam version wasn't found.");
+      if (version.status !== "IN_REVIEW") throw new AppError(409, "CONFLICT", "This version isn't waiting for review.");
+      if (version.createdById === actor.userId) throw new AppError(403, "FORBIDDEN", "A second person has to review this version.");
+      if (input.decision === "REQUEST_CHANGES" && !input.note) throw new AppError(400, "VALIDATION_ERROR", "Say what needs to change.");
+      return prisma.$transaction(async (tx) => {
+        if (input.decision === "APPROVE") {
+          const result = await tx.examVersion.update({ where: { id: versionId }, data: { reviewedById: actor.userId, approvedAt: new Date(), reviewNote: input.note ?? null } });
+          await tx.contentPublicationHistory.create({ data: { examVersionId: versionId, actorId: actor.userId, action: "APPROVED", fromStatus: "IN_REVIEW", toStatus: "IN_REVIEW", ...(input.note ? { note: input.note } : {}) } });
+          await recordAudit(tx, actor, { action: "exam_version.approve", entityType: "exam_version", entityId: versionId });
+          return result;
+        }
+        const result = await tx.examVersion.update({ where: { id: versionId }, data: { status: "DRAFT", approvedAt: null, reviewedById: null, reviewNote: input.note ?? null } });
+        await tx.contentPublicationHistory.create({ data: { examVersionId: versionId, actorId: actor.userId, action: "RESTORED_TO_DRAFT", fromStatus: "IN_REVIEW", toStatus: "DRAFT", ...(input.note ? { note: input.note } : {}) } });
+        await recordAudit(tx, actor, { action: "exam_version.request_changes", entityType: "exam_version", entityId: versionId });
+        return result;
+      });
+    },
+
+    /** The author takes it back to edit. Any approval ends, because the content can now change. */
+    async withdrawFromReview(actor: Actor, versionId: string) {
+      const version = await prisma.examVersion.findUnique({ where: { id: versionId }, select: { status: true } });
+      if (!version) throw new AppError(404, "NOT_FOUND", "This exam version wasn't found.");
+      if (version.status !== "IN_REVIEW") throw new AppError(409, "CONFLICT", "This version isn't in review.");
+      return prisma.$transaction(async (tx) => {
+        const result = await tx.examVersion.update({ where: { id: versionId }, data: { status: "DRAFT", approvedAt: null, reviewedById: null } });
+        await tx.contentPublicationHistory.create({ data: { examVersionId: versionId, actorId: actor.userId, action: "RESTORED_TO_DRAFT", fromStatus: "IN_REVIEW", toStatus: "DRAFT" } });
+        await recordAudit(tx, actor, { action: "exam_version.withdraw_review", entityType: "exam_version", entityId: versionId });
+        return result;
+      });
     },
 
     async archive(actor: Actor, versionId: string) {

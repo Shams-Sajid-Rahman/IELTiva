@@ -82,7 +82,11 @@ export function createPrivacyService({ prisma, storage, auth, logger }: Deps) {
       prisma.userEntitlement.findMany({ where: { userId }, select: { featureKey: true, status: true, creditsGranted: true, creditsUsed: true, startsAt: true, endsAt: true } }),
       prisma.userNotification.findMany({ where: { userId }, take: 1_000, select: { readAt: true, notification: { select: { title: true, body: true, createdAt: true } } } }),
     ]);
-    return { exportVersion: EXPORT_VERSION, exportedAt: new Date().toISOString(), note: "A copy of the personal data IELTiva holds about you. Sign-in secrets aren't included.", account: user, consents, enrollments, progress, history, studyPlans: plans, examAttempts: attempts, tutorConversations: conversations, purchases, credits: { entitlements, ledger }, notifications };
+    const [feedback, reviews] = await Promise.all([
+      prisma.betaFeedback.findMany({ where: { userId }, select: { category: true, message: true, status: true, createdAt: true } }),
+      prisma.instructorReview.findMany({ where: { requestedById: userId }, select: { status: true, overallBand: true, criterionBands: true, note: true, requestedAt: true, completedAt: true } }),
+    ]);
+    return { exportVersion: EXPORT_VERSION, exportedAt: new Date().toISOString(), note: "A copy of the personal data IELTiva holds about you. Sign-in secrets aren't included.", account: user, consents, enrollments, progress, history, studyPlans: plans, examAttempts: attempts, tutorConversations: conversations, purchases, credits: { entitlements, ledger }, notifications, feedback, instructorReviews: reviews };
   }
 
   async function deleteStoredFiles(userId: string) {
@@ -100,11 +104,15 @@ export function createPrivacyService({ prisma, storage, auth, logger }: Deps) {
   /** Removes the person from every table, and keeps financial rows with no way to identify them. */
   async function eraseAccount(userId: string) {
     const files = await deleteStoredFiles(userId);
+    const { email } = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
     await prisma.$transaction(
       async (tx) => {
         await tx.aIAssessmentJob.deleteMany({ where: { userId } });
         await tx.examAttempt.deleteMany({ where: { userId } });
         await tx.tutorConversation.deleteMany({ where: { userId } });
+        // Feedback is free text and can name the person, and the allow list holds their address.
+        await tx.betaFeedback.deleteMany({ where: { userId } });
+        await tx.betaAccess.deleteMany({ where: { email } });
         await tx.userConsent.deleteMany({ where: { userId } });
         await tx.userEnrollment.deleteMany({ where: { userId } });
         await tx.learningProgress.deleteMany({ where: { userId } });

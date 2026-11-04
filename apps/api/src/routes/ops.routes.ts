@@ -4,7 +4,9 @@ import { requirePermission } from "../middleware/authenticate.js";
 import { userRateLimit } from "../middleware/rate-limit.js";
 import type { ResourceFileService } from "../services/files/resource-files.service.js";
 import type { OperationsService } from "../services/ops/operations.service.js";
+import type { ReleaseService } from "../services/release/release.service.js";
 import type { ReportService } from "../services/reports/report.service.js";
+import { requireFlag } from "./release.routes.js";
 import type { Actor } from "../types/platform.js";
 import { sendSuccess } from "../utils/api-response.js";
 import { AppError } from "../utils/app-error.js";
@@ -41,13 +43,14 @@ export function createProbeRouter(operations: Pick<OperationsService, "live" | "
   return r;
 }
 
-export function createOpsRouter({ operations, reports, resourceFiles }: { operations: OperationsService; reports: ReportService; resourceFiles: ResourceFileService }) {
+export function createOpsRouter({ operations, reports, resourceFiles, release }: { operations: OperationsService; reports: ReportService; resourceFiles: ResourceFileService; release: Pick<ReleaseService, "isEnabled"> }) {
   const r = Router();
+  const reportsOn = requireFlag(release, "reports.downloads", "Reports are paused right now.");
 
   r.get("/admin/operations", requirePermission("operations.read"), async (_req, res) => sendSuccess(res, "Operations", await operations.overview()));
 
   r.get("/reports", async (req, res) => sendSuccess(res, "Your files", await reports.list(actorOf(req))));
-  r.post("/reports", userRateLimit("reports", 60_000, 5), async (req, res) => {
+  r.post("/reports", reportsOn, userRateLimit("reports", 60_000, 5), async (req, res) => {
     const { kind } = z.strictObject({ kind: z.literal("PROGRESS_REPORT") }).parse(req.body);
     sendSuccess(res, "File requested", await reports.request(actorOf(req), kind), 202);
   });

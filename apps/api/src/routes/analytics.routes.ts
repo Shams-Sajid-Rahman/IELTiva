@@ -5,6 +5,8 @@ import { userRateLimit } from "../middleware/rate-limit.js";
 import type { AdminAnalyticsService } from "../services/analytics/admin.service.js";
 import type { LearningService } from "../services/analytics/learning.service.js";
 import type { StudentAnalyticsService } from "../services/analytics/student.service.js";
+import type { ReleaseService } from "../services/release/release.service.js";
+import { requireFlag } from "./release.routes.js";
 import { toAppError } from "../services/ai/tutor.service.js";
 import type { Actor } from "../types/platform.js";
 import { sendPage, sendSuccess } from "../utils/api-response.js";
@@ -20,8 +22,9 @@ const explainLimit = userRateLimit("recommendations-explain", 60_000, 5, "Please
 export type AnalyticsServices = { student: StudentAnalyticsService; learning: LearningService; admin: AdminAnalyticsService };
 
 /** Every student route reads the signed-in student's own data. No route takes a user ID, so one student can't ask for another's. */
-export function createAnalyticsRouter({ student, learning, admin }: AnalyticsServices) {
+export function createAnalyticsRouter({ student, learning, admin }: AnalyticsServices, release: Pick<ReleaseService, "isEnabled">) {
   const r = Router();
+  const explainOn = requireFlag(release, "ai.recommendation_explanations", "AI explanations are paused right now.");
   const staff = requirePermission("dashboard.admin");
 
   r.get("/analytics/me", async (req, res) => sendSuccess(res, "Analytics", await student.overview(actorOf(req), analyticsRangeSchema.parse(req.query).days)));
@@ -29,7 +32,7 @@ export function createAnalyticsRouter({ student, learning, admin }: AnalyticsSer
   r.get("/analytics/goals", async (req, res) => sendSuccess(res, "Goals", await learning.goals(actorOf(req))));
   r.put("/analytics/goals", async (req, res) => sendSuccess(res, "Goals saved", await learning.setGoals(actorOf(req), learningGoalsSchema.parse(req.body))));
   r.get("/analytics/recommendations", async (req, res) => sendSuccess(res, "Recommendations", await learning.recommendations(actorOf(req))));
-  r.post("/analytics/recommendations/explain", explainLimit, async (req, res) => {
+  r.post("/analytics/recommendations/explain", explainOn, explainLimit, async (req, res) => {
     try {
       sendSuccess(res, "Explanation", await learning.explain(actorOf(req)));
     } catch (error) {

@@ -935,7 +935,8 @@
     "remove_file": "Remove file",
     "attach_file": "Attach a PDF or image",
     "uploading": "Uploading...",
-    "download_file": "Download {name}"
+    "download_file": "Download {name}",
+    "release_controls": "Release controls"
   },
   "footer": {
     "tagline": "Prepare Smarter. Achieve Higher.",
@@ -1508,7 +1509,20 @@
       "PLAN_LABELLING": "Plan labelling",
       "MAP_LABELLING": "Map labelling",
       "SHORT_ANSWER": "Short answer"
-    }
+    },
+    "sendForReview": "Send for review",
+    "sendForReviewBody": "A second person will check this version. It cannot be edited while in review.",
+    "sentForReview": "Sent for review",
+    "inReviewBody": "This version is waiting for a second person to review it, and it cannot be edited.",
+    "approvedBody": "A reviewer approved this version. It can now be published. Any change means withdrawing it, which ends the approval.",
+    "approveVersion": "Approve",
+    "approveVersionBody": "This records you as the reviewer. Approve only if you checked the questions, answer keys and the right to use this content.",
+    "requestChanges": "Request changes",
+    "whatToChange": "What needs to change?",
+    "reviewerNote": "Reviewer:",
+    "secondPerson": "A second person has to review your version.",
+    "withdraw": "Withdraw from review",
+    "withdrawBody": "This returns the version to draft so it can be edited, and ends any approval."
   },
   "ai": {
     "consent": {
@@ -1710,7 +1724,25 @@
       "releasePublic": "Release to students",
       "releasePublicBody": "Students will see bands for this exact model, prompt, IELTS type and task. This needs every safeguard to be met.",
       "closeGate": "Close the gate",
-      "closeGateBody": "Bands stop showing straight away."
+      "closeGateBody": "Bands stop showing straight away.",
+      "listen": "Listen to the recording",
+      "listenNote": "Mark what you hear. Pronunciation cannot be judged from the transcript.",
+      "recording": "Recording",
+      "transcript": "Transcript",
+      "pronunciationCheck": "Pronunciation check",
+      "runPronunciation": "Check pronunciation measures ({split})",
+      "pronunciationResult": "{count} samples compared and {skipped} skipped. Correlation with human marks: {correlation}.",
+      "pronunciationNote": "This compares the speech service's measure with what qualified markers heard. It is evidence for instructors to weigh. It does not validate anything by itself, and cannot release a band."
+    },
+    "review": {
+      "title": "Instructor review",
+      "offer": "Want a person to check this? A qualified instructor can review it, without seeing your name.",
+      "ask": "Ask for a review",
+      "waiting": "Your request is waiting for an instructor.",
+      "cancel": "Cancel request",
+      "failed": "That did not work. Please try again.",
+      "notOfficial": "Reviewed by an instructor for practice. This is not an official IELTS result.",
+      "overall": "Overall:"
     }
   },
   "billing": {
@@ -2246,6 +2278,165 @@
       "email": "Email",
       "worker": "Background jobs",
       "audio": "Audio"
+    }
+  },
+  "assessmentReview": {
+    "title": "Instructor reviews",
+    "intro": "Students ask for these on their own work. You see the work without the student's name.",
+    "waiting": "Waiting",
+    "done": "Done",
+    "nothingWaiting": "Nothing is waiting for review",
+    "nothingDone": "No completed reviews yet",
+    "skill": "Skill",
+    "task": "Task",
+    "requested": "Requested",
+    "review": "Review",
+    "open": "Open",
+    "back": "Back to the list",
+    "saved": "Review saved",
+    "failed": "The review could not be saved.",
+    "words": "{count} words, minimum {min}",
+    "listen": "Listen to the recording",
+    "noRecording": "The recording is no longer available, so pronunciation cannot be scored.",
+    "transcript": "Machine transcript",
+    "transcriptNote": "A machine wrote this and it may contain errors. Mark what you hear.",
+    "overall": "Overall band",
+    "overallHint": "An overall band needs a score for every criterion. You can also give only a note or some criteria.",
+    "note": "Note to the student",
+    "saveReview": "Save review"
+  },
+  "release": {
+    "betaNotice": "You are using a test version of IELTiva. Some things may change or not work yet, so please tell us what you find.",
+    "loadingAudio": "Loading...",
+    "audioUnavailable": "This recording is not available.",
+    "feedback": {
+      "button": "Send feedback",
+      "title": "Send feedback",
+      "intro": "Tell us what went wrong or what would help.",
+      "kind": "What is it about?",
+      "message": "Your message",
+      "send": "Send",
+      "thanks": "Thank you for your feedback",
+      "privacy": "Our team sees your email and the page you were on. Please do not include passwords or card details.",
+      "categories": {
+        "BUG": "Something is broken",
+        "CONTENT": "A question or lesson",
+        "AI_FEEDBACK": "AI feedback or tutor",
+        "PAYMENT": "A payment",
+        "IDEA": "An idea",
+        "OTHER": "Something else"
+      }
+    },
+    "flags": {
+      "registration_open": {
+        "title": "New accounts",
+        "body": "Lets people register."
+      },
+      "ai_writing_feedback": {
+        "title": "AI Writing feedback",
+        "body": "New requests for Writing feedback."
+      },
+      "ai_speaking_feedback": {
+        "title": "AI Speaking feedback",
+        "body": "New requests for Speaking feedback."
+      },
+      "ai_tutor": {
+        "title": "AI tutor",
+        "body": "Tutor conversations and short explanations."
+      },
+      "ai_recommendation_explanations": {
+        "title": "AI explanations of recommendations",
+        "body": "Recommendations still appear when this is off."
+      },
+      "payments_checkout": {
+        "title": "Checkout",
+        "body": "New payments. Open payments still settle, and refunds still work."
+      },
+      "reviews_instructor": {
+        "title": "Instructor review requests",
+        "body": "Lets students ask for a person to review their work."
+      },
+      "reports_downloads": {
+        "title": "Progress reports",
+        "body": "New progress reports. Data exports stay available."
+      },
+      "feedback_collection": {
+        "title": "Feedback form",
+        "body": "The Send feedback button."
+      },
+      "beta_access_required": {
+        "title": "Private beta list",
+        "body": "Only addresses on the beta list, and staff, can register or sign in."
+      },
+      "content_publication_approval": {
+        "title": "Publication approval",
+        "body": "Exam versions need a second person's approval before publishing."
+      }
+    },
+    "admin": {
+      "title": "Release controls",
+      "intro": "Turn features on and off, control beta access, and track feedback and incidents.",
+      "switchesTab": "Switches",
+      "betaTab": "Beta access",
+      "feedbackTab": "Feedback",
+      "incidentsTab": "Incidents",
+      "saved": "Saved",
+      "channel": "This server is: {channel}",
+      "channelNote": "This is set in the server settings. Beta and production servers always require publication approval, and beta servers always require the beta list. Live payments cannot be used on a beta server.",
+      "bandsState": "AI band releases open to students: {released}. These are controlled only through Calibration, after human approval.",
+      "changedBy": "Last changed by {who}, {when}",
+      "lockedOn": "Always on here",
+      "maintenance": "Message shown to everyone",
+      "maintenanceHint": "Use this for planned work. Leave it empty to remove the message.",
+      "saveMessage": "Save message",
+      "betaNote": "Adding an address only allows it in. Nothing is sent, so people are not invited until you tell them yourself.",
+      "email": "Email",
+      "noteOptional": "Note",
+      "allow": "Allow",
+      "noBeta": "No addresses yet",
+      "status": "Status",
+      "removeAccess": "Remove access",
+      "removeAccessBody": "They will be signed out and unable to sign in during the private beta.",
+      "betaStatus": {
+        "ALLOWED": "Allowed",
+        "REVOKED": "Removed"
+      },
+      "noFeedback": "No feedback here",
+      "deletedUser": "Deleted account",
+      "feedbackStatus": {
+        "NEW": "New",
+        "TRIAGED": "Looked at",
+        "RESOLVED": "Resolved"
+      },
+      "feedbackMove": {
+        "TRIAGED": "Mark as looked at",
+        "RESOLVED": "Mark as resolved"
+      },
+      "newIncident": "Record an incident",
+      "newIncidentHint": "Use this for anything affecting students, payments or personal data. See OPERATIONS_RUNBOOK.md for what to do next.",
+      "incidentTitle": "Title",
+      "severityLabel": "Severity",
+      "whatHappened": "What happened?",
+      "personalData": "Personal data may be affected",
+      "payments": "Payments may be affected",
+      "personalDataNote": "Tell the owner and legal adviser now. Reporting deadlines may apply.",
+      "save": "Save",
+      "noIncidents": "No incidents recorded",
+      "addUpdate": "Add an update",
+      "whatChanged": "What changed?",
+      "noStatusChange": "Keep the current status",
+      "severity": {
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "CRITICAL": "Critical"
+      },
+      "incidentStatus": {
+        "OPEN": "Open",
+        "INVESTIGATING": "Investigating",
+        "MITIGATED": "Contained",
+        "RESOLVED": "Resolved"
+      }
     }
   }
 }

@@ -567,3 +567,10 @@ Details are in `PAYMENTS.md`, `INFRASTRUCTURE.md`, `SECURITY.md` and `LEGAL_REVI
 - **Privacy** (`services/privacy`): export and account deletion. Deletion removes files first, then erases rows in one transaction, keeping only financial records with identity removed.
 
 This replaces the plan in section 12's "User requests" where they differ. In particular, the student stays able to sign in during the cancellation window.
+
+## 12C. Phase 10 as built
+
+- **Release controls** (`services/release`): switches default to their definition in `packages/shared/src/release.ts` until someone stores a choice, and the server enforces them. `RELEASE_CHANNEL` decides what can't be switched off.
+- **Publication approval:** an exam version goes draft → in review → approved → published, and locks during review.
+- **Instructor review** (`services/review`): kept apart from AI results, so a human score never overwrites an AI one and both remain comparable. This is what the "reviewed" scores in analytics read.
+- **Speaking calibration:** samples hold recordings, and the pronunciation check reports a correlation only. Speaking bands stay unreleasable.

@@ -14,6 +14,7 @@ import { createCache } from "./services/cache.js";
 import { createEmailProvider } from "./services/email/index.js";
 import { createNotifier } from "./services/notifier.js";
 import { createNotificationService } from "./services/notification.service.js";
+import { createAlertChecker } from "./services/ops/alerts.js";
 import { createEventRecorder } from "./services/ops/events.js";
 import { createPrivacyService } from "./services/privacy/privacy.service.js";
 import { createJobQueues, createRedisClient, HEARTBEAT_PREFIX, HEARTBEAT_SECONDS, QUEUES, type JobData } from "./services/queue/jobs.js";
@@ -65,6 +66,7 @@ const privacy = createPrivacyService({
   },
 });
 const reports = createReportService({ prisma, storage, queues, analytics, buildExport: privacy.buildExport, logger });
+const checkAlerts = createAlertChecker({ prisma, notify, logger });
 
 /** Permanent failures stop now instead of being retried, and each failure is recorded where students can see it. */
 function classify(error: unknown) {
@@ -158,6 +160,7 @@ const maintenance: Record<string, () => Promise<unknown>> = {
     const setting = await prisma.platformSetting.findUnique({ where: { key: "retention.audit_ip_days" } });
     await prisma.auditLog.updateMany({ where: { ipAddress: { not: null }, createdAt: { lt: new Date(Date.now() - (typeof setting?.value === "number" ? setting.value : 365) * DAY) } }, data: { ipAddress: null } });
   },
+  "ops.alerts": () => checkAlerts(),
   "billing.sweep": () => billing.payments.sweepPending(),
   "billing.expire": () => billing.entitlements.expireDue(),
   "reminders.tick": () => learning.sendDueReminders(),
@@ -170,6 +173,7 @@ const SCHEDULE: Record<keyof typeof maintenance, number> = {
   "retention.operations": DAY,
   "retention.tokens": DAY,
   "retention.audit_addresses": DAY,
+  "ops.alerts": 900_000,
   "billing.sweep": 300_000,
   "billing.expire": 3_600_000,
   "reminders.tick": 900_000,

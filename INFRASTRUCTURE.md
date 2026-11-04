@@ -80,7 +80,7 @@ A student's open attempts and enrollments are never cached. Changes to packages 
 - `GET /api/v1/health`: the original status check.
 - **Admin → System health** (`operations.read`): database, Redis, storage, workers, queue depths, stuck work and errors from the last 24 hours, by area.
 
-These aren't connected to any alerting. Nothing tells you about a problem unless someone looks, so add an uptime check on `/health/ready` and an alert on worker heartbeats before launch. `SENTRY_DSN` exists in the settings but isn't wired up.
+The worker sends in-app alerts for known problems (see `OPERATIONS_RUNBOOK.md`). Those stop if the worker stops, so add an outside uptime check on `/health/ready` before any beta. `SENTRY_DSN` exists in the settings but isn't wired up.
 
 ## Deployment
 

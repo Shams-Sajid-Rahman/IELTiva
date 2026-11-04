@@ -7,3 +7,4 @@ export * from "./domain.js";
 export * from "./exam.js";
 export * from "./health.js";
 export * from "./platform.js";
+export * from "./release.js";

@@ -58,7 +58,7 @@ export function createAiRuntime({ prisma, env, storage, logger, queue }: { prism
   };
   const assessment = createAssessmentService({ prisma, ai, queue: activeQueue, speech, storage, credits });
   const tutor = createTutorService(prisma, ai);
-  const calibration = createCalibrationService({ prisma, ai, queue: activeQueue });
+  const calibration = createCalibrationService({ prisma, ai, queue: activeQueue, storage, speech });
 
   const consents = {
     version: CONSENT_VERSION,

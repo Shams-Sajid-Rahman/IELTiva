@@ -351,3 +351,17 @@ All additive, and applied without changing existing rows. Existing `practice_pac
 **`protect_audit_log` changed:** audit entries still can't be deleted, or have what happened changed. The IP address and stored before/after values can now be cleared, for retention and account deletion.
 
 **Money:** whole minor units in integer columns. There are no floats.
+
+## Phase 10 changes
+
+All additive, with no existing rows changed.
+
+| Change | Why |
+| --- | --- |
+| `exam_versions.review_note`, `submitted_at`, `approved_at`. `PublicationAction` gained `APPROVED` | Second-person publication approval |
+| `calibration_samples.audio_storage_key` | Speaking samples need recordings |
+| `instructor_reviews` | A person's assessment, apart from AI results. One per submission |
+| `feature_flags` | Stored switch choices. A switch with no row uses its default |
+| `beta_access` | The private beta list. Adding an address sends nothing |
+| `beta_feedback` | Feedback from signed-in people. Deleted with the account |
+| `incidents`, `incident_updates` | Incident records and their timeline |

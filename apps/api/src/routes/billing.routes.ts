@@ -18,6 +18,8 @@ import { requirePermission } from "../middleware/authenticate.js";
 import { userRateLimit } from "../middleware/rate-limit.js";
 import { readFields } from "../services/billing/payment.service.js";
 import type { BillingRuntime } from "../services/billing/runtime.js";
+import type { ReleaseService } from "../services/release/release.service.js";
+import { requireFlag } from "./release.routes.js";
 import type { Actor } from "../types/platform.js";
 import { sendPage, sendSuccess } from "../utils/api-response.js";
 import { AppError } from "../utils/app-error.js";
@@ -35,8 +37,9 @@ const code = (req: Request, name: string) => z.string().regex(/^[a-z0-9_-]{2,40}
 const checkoutLimit = userRateLimit("checkout", 60_000, 10, "Too many payment attempts. Please wait a moment.");
 
 /** Student and administrator billing endpoints. They sit behind the normal sign-in. */
-export function createBillingRouter({ packages, payments, refunds, entitlements, revenue }: BillingRuntime) {
+export function createBillingRouter({ packages, payments, refunds, entitlements, revenue }: BillingRuntime, release: Pick<ReleaseService, "isEnabled">) {
   const r = Router();
+  const checkoutOn = requireFlag(release, "payments.checkout", "Payments are paused right now, and nothing was charged.");
   const read = requirePermission("payments.read");
   const manage = requirePermission("payments.manage");
   const decide = requirePermission("refunds.manage");
@@ -49,7 +52,7 @@ export function createBillingRouter({ packages, payments, refunds, entitlements,
     const currency = z.enum(supportedCurrencies).optional().parse(req.query.currency);
     sendSuccess(res, "Payment methods", await payments.availableGateways(currency));
   });
-  r.post("/billing/checkout", checkoutLimit, async (req, res) => sendSuccess(res, "Payment started", await payments.checkout(actorOf(req), checkoutSchema.parse(req.body)), 201));
+  r.post("/billing/checkout", checkoutOn, checkoutLimit, async (req, res) => sendSuccess(res, "Payment started", await payments.checkout(actorOf(req), checkoutSchema.parse(req.body)), 201));
   r.get("/billing/payments/:reference/status", async (req, res) => sendSuccess(res, "Payment status", await payments.status(actorOf(req), z.string().regex(/^IELT[0-9a-f]{20}$/).parse(req.params.reference))));
   r.get("/billing/purchases", async (req, res) => sendPage(res, "Purchases", await payments.history(actorOf(req), pageQuerySchema.parse(req.query))));
   r.get("/billing/credits", async (req, res) => sendSuccess(res, "Credits", await entitlements.balance(actorOf(req).userId)));

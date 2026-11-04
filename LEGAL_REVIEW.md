@@ -19,6 +19,9 @@ An AI-assisted IELTS preparation service, independent of the IELTS partners. It 
 | Voice recordings | Speaking feedback | 90 days by default, and students can delete sooner | **Microsoft Azure (speech)**, after consent, plus Cloudflare R2 for storage |
 | Transcripts and pronunciation measures | Speaking feedback | Until deletion | **Anthropic** receives the transcript |
 | Tutor conversations | Tutoring | Until deletion | **Anthropic**, with obvious emails and numbers removed first |
+| Feedback messages | Improving the service | Until deletion | Nobody |
+| Instructor reviews | Human marking at the student's request | Until deletion | Instructors, without the student's name |
+| Beta list email addresses | Private beta access | Until removed | Nobody |
 | Purchases and transactions | Payments and accounting | Kept after deletion with identity removed | The chosen gateway |
 | IP address and browser | Security | Sessions until expiry, audit log IPs 365 days | Nobody |
 | Calibration samples | Checking AI accuracy | While used | De-identified, with separate consent |
@@ -76,7 +79,9 @@ Please confirm which apply before selling there. These are starting points only:
 
 ## Documents still needed
 
-None of these exist as reviewed legal text: Privacy Notice, Terms of Service, Refund Policy, Cookie Notice, and AI and Recording Consent wording. The consent wording in the app was written by the developer, and the registration page's terms need a final version.
+Unreviewed drafts of the Privacy Policy, Terms of Service and Refund Policy are in `docs/legal/`. None is published, and none has any legal standing yet. A Cookie Notice and final AI and recording consent wording still need writing. The consent wording in the app was written by the developer.
+
+**Fix before any real users:** the registration page already asks people to accept "the terms of service and privacy policy", but neither is published or linked. Registration must not open until the reviewed documents are linked from that checkbox.
 
 ## Sources for the Bangladesh questions
 

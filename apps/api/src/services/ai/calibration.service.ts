@@ -1,3 +1,6 @@
+import type { PrivateStorage } from "../storage/private-storage.js";
+import { AiError } from "./provider.js";
+import type { SpeechProvider } from "./speech.provider.js";
 import type { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 import type { Actor } from "../../types/platform.js";
 import { pageMeta } from "../../utils/api-response.js";
@@ -36,7 +39,34 @@ const agreedBand = (a: number, b: number) => nearestHalf((a + b) / 2);
 
 const isBand = (value: number) => value >= 0 && value <= 9 && value * 2 === Math.round(value * 2);
 
-export function createCalibrationService({ prisma, ai, queue }: { prisma: PrismaClient; ai: AiService; queue: AiQueue | null }) {
+/** How closely two lists move together, from -1 to 1. Null when there's too little to say, or no variation at all. */
+const MAX_SAMPLE_AUDIO_BYTES = 50 * 1024 * 1024;
+const AUDIO_TYPES: { contentType: string; extension: string; matches: (data: Buffer) => boolean }[] = [
+  { contentType: "audio/webm", extension: "webm", matches: (d) => d.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) },
+  { contentType: "audio/ogg", extension: "ogg", matches: (d) => d.subarray(0, 4).toString("latin1") === "OggS" },
+  { contentType: "audio/wav", extension: "wav", matches: (d) => d.subarray(0, 4).toString("latin1") === "RIFF" && d.subarray(8, 12).toString("latin1") === "WAVE" },
+  { contentType: "audio/mpeg", extension: "mp3", matches: (d) => d.subarray(0, 3).toString("latin1") === "ID3" || (d[0] === 0xff && ((d[1] ?? 0) & 0xe0) === 0xe0) },
+  { contentType: "audio/mp4", extension: "m4a", matches: (d) => d.subarray(4, 8).toString("latin1") === "ftyp" },
+];
+const detectAudioType = (data: Buffer) => AUDIO_TYPES.find((type) => type.matches(data)) ?? null;
+const contentTypeForAudioKey = (key: string) => AUDIO_TYPES.find((type) => key.endsWith(`.${type.extension}`))?.contentType ?? "application/octet-stream";
+
+export function correlation(pairs: { x: number; y: number }[]) {
+  if (pairs.length < 3) return null;
+  const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  const meanX = mean(pairs.map((pair) => pair.x));
+  const meanY = mean(pairs.map((pair) => pair.y));
+  const top = pairs.reduce((sum, pair) => sum + (pair.x - meanX) * (pair.y - meanY), 0);
+  const left = Math.sqrt(pairs.reduce((sum, pair) => sum + (pair.x - meanX) ** 2, 0));
+  const right = Math.sqrt(pairs.reduce((sum, pair) => sum + (pair.y - meanY) ** 2, 0));
+  return left === 0 || right === 0 ? null : Math.round((top / (left * right)) * 1000) / 1000;
+}
+
+export const PRONUNCIATION_TASK = "pronunciation.validate";
+
+type CalibrationDeps = { prisma: PrismaClient; ai: AiService; queue: AiQueue | null; storage?: PrivateStorage | undefined; speech?: SpeechProvider | null | undefined };
+
+export function createCalibrationService({ prisma, ai, queue, storage, speech }: CalibrationDeps) {
   const dataset = async (id: string) => {
     const row = await prisma.calibrationDataset.findUnique({ where: { id } });
     if (!row) throw new AppError(404, "NOT_FOUND", "This dataset wasn't found.");
@@ -196,9 +226,59 @@ export function createCalibrationService({ prisma, ai, queue }: { prisma: Prisma
       const [total, approved] = await Promise.all([prisma.calibrationSample.count({ where: { datasetId: id } }), prisma.calibrationSample.count({ where: { datasetId: id, status: "APPROVED" } })]);
       if (total === 0) throw new AppError(409, "CONFLICT", "Add samples before freezing.");
       if (approved !== total) throw new AppError(409, "CONFLICT", "Every sample needs its final mark before freezing.");
+      const set = await dataset(id);
+      if (set.skill === "SPEAKING") {
+        // Speaking marks must come from listening, so a transcript alone isn't a valid sample.
+        const missing = await prisma.calibrationSample.count({ where: { datasetId: id, audioStorageKey: null } });
+        if (missing > 0) throw new AppError(409, "CONFLICT", `${missing} Speaking samples have no recording.`);
+      }
       const row = await prisma.calibrationDataset.update({ where: { id }, data: { frozenAt: new Date(), frozenById: actor.userId } });
       await recordAudit(prisma, actor, { action: "calibration.freeze", entityType: "calibration_dataset", entityId: id, after: { samples: total } });
       return row;
+    },
+
+    /** The recording markers listen to. It's stored de-identified, like the rest of the sample. */
+    async uploadSampleAudio(actor: Actor, sampleId: string, data: Buffer) {
+      if (!storage) throw new AppError(503, "SERVICE_UNAVAILABLE", "File storage isn't available.");
+      const sample = await sampleWithDataset(sampleId);
+      if (sample.dataset.frozenAt) throw new AppError(409, "CONFLICT", "This dataset is frozen and can't change.");
+      if (sample.dataset.skill !== "SPEAKING") throw new AppError(400, "VALIDATION_ERROR", "Only Speaking samples have recordings.");
+      if (data.length === 0 || data.length > MAX_SAMPLE_AUDIO_BYTES) throw new AppError(400, "VALIDATION_ERROR", "This recording is empty or too large.");
+      const type = detectAudioType(data);
+      if (!type) throw new AppError(400, "VALIDATION_ERROR", "This file isn't a supported audio recording.");
+      const key = `calibration/${sample.datasetId}/${sampleId}-${Date.now()}.${type.extension}`;
+      await storage.put(key, data, { contentType: type.contentType });
+      await prisma.calibrationSample.update({ where: { id: sampleId }, data: { audioStorageKey: key } });
+      if (sample.audioStorageKey) await storage.delete(sample.audioStorageKey);
+      await recordAudit(prisma, actor, { action: "calibration.sample_audio", entityType: "calibration_sample", entityId: sampleId });
+      return { hasRecording: true };
+    },
+
+    async readSampleAudio(sampleId: string) {
+      const sample = await prisma.calibrationSample.findUnique({ where: { id: sampleId }, select: { audioStorageKey: true } });
+      const data = sample?.audioStorageKey && storage ? await storage.get(sample.audioStorageKey) : null;
+      if (!sample?.audioStorageKey || !data) throw new AppError(404, "NOT_FOUND", "This recording isn't available.");
+      return { data, contentType: contentTypeForAudioKey(sample.audioStorageKey) };
+    },
+
+    /**
+     * Compares the speech provider's pronunciation measures with what qualified markers heard. This is evidence for a
+     * person to weigh. It can't release anything, and it never turns a measure into a band.
+     */
+    async startPronunciationCheck(actor: Actor, datasetId: string, split: "TUNING" | "VALIDATION" | "TEST") {
+      if (!speech || !queue) throw new AppError(503, "SERVICE_UNAVAILABLE", "Speech processing isn't available yet.");
+      const row = await dataset(datasetId);
+      if (row.skill !== "SPEAKING") throw new AppError(409, "CONFLICT", "This check is for Speaking datasets.");
+      if (!row.frozenAt) throw new AppError(409, "CONFLICT", "Freeze the dataset first.");
+      const run = await prisma.calibrationRun.create({ data: { datasetId, split, taskKey: PRONUNCIATION_TASK, createdById: actor.userId } });
+      await recordAudit(prisma, actor, { action: "calibration.pronunciation_check", entityType: "calibration_run", entityId: run.id, after: { split } });
+      try {
+        await queue.add("calibration.run", { jobId: run.id }, run.id);
+      } catch {
+        await prisma.calibrationRun.update({ where: { id: run.id }, data: { status: "FAILED", errorMessage: "The queue couldn't be reached." } });
+        throw new AppError(503, "SERVICE_UNAVAILABLE", "Processing isn't available right now.");
+      }
+      return run;
     },
 
     async startRun(actor: Actor, datasetId: string, body: { split: "TUNING" | "VALIDATION" | "TEST"; taskKey: "writing.assess" | "calibration.compare" }) {
@@ -224,6 +304,30 @@ export function createCalibrationService({ prisma, ai, queue }: { prisma: Prisma
       if (run.status === "COMPLETED") return;
       await prisma.calibrationRun.update({ where: { id: runId }, data: { status: "PROCESSING", errorMessage: null } });
       const samples = await prisma.calibrationSample.findMany({ where: { datasetId: run.datasetId, split: run.split, status: "APPROVED" } });
+      if (run.taskKey === PRONUNCIATION_TASK) {
+        if (!speech || !storage) throw new AiError("NOT_CONFIGURED", "Speech processing isn't available.", false);
+        const rows: { reference: string; human: number; measure: number }[] = [];
+        let skipped = 0;
+        for (const sample of samples) {
+          const human = (sample.finalCriterionBands as Record<string, number> | null)?.PRONUNCIATION;
+          const audio = sample.audioStorageKey ? await storage.get(sample.audioStorageKey) : null;
+          if (human === undefined || !audio) {
+            skipped += 1;
+            continue;
+          }
+          const measure = (await speech.transcribe(audio)).pronunciation?.pronunciationScore;
+          if (typeof measure === "number") rows.push({ reference: sample.reference, human, measure });
+          else skipped += 1;
+        }
+        await prisma.calibrationRun.update({
+          where: { id: runId },
+          data: {
+            status: "COMPLETED",
+            metrics: { kind: "pronunciation", count: rows.length, skipped, correlation: correlation(rows.map((row) => ({ x: row.human, y: row.measure }))), meetsTargets: false, samples: rows },
+          },
+        });
+        return;
+      }
       const pairs: { human: number; ai: number }[] = [];
       const criterionGaps: Record<string, number[]> = {};
       for (const sample of samples) {

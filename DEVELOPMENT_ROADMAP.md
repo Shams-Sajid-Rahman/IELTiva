@@ -127,6 +127,10 @@ Built, and **not run**, because the owner asked for no manual or automated testi
 
 **Needs before use:** Redis, a running worker, gateway sandbox accounts, R2 buckets, then real testing of everything from Phase 5 onward, an independent security test and legal review.
 
+### Owner's Phase 10: Beta preparation (built)
+
+Preparation only. Nothing was tested, no one was invited and nothing was published. IELTiva is **not** launch-ready. See `FEATURE_STATUS.md` for the review of Phases 1 to 9, and `FINAL_TEST_CHECKLIST.md` for testing after Phase 11.
+
 ### Phase 6: Mock test refinement (1 week)
 
 The mock test engine was built in Phase 4. What remains is real full-length content and any changes the instructor asks for.

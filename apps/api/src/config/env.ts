@@ -16,6 +16,8 @@ const envSchema = z
     DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a PostgreSQL connection URL"),
     FRONTEND_URL: z.url(),
     API_BASE_URL: z.url(),
+    // Which kind of server this is. Beta and production always need publication approval, and beta always needs the allow list.
+    RELEASE_CHANNEL: z.enum(["development", "beta", "production"]).default("development"),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
     JWT_ACCESS_SECRET: secret,
@@ -68,6 +70,9 @@ const envSchema = z
     }
     if (env.RESEND_API_KEY && !env.EMAIL_FROM) {
       ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "is required when RESEND_API_KEY is set" });
+    }
+    if (env.RELEASE_CHANNEL === "beta" && env.PAYMENT_ALLOW_LIVE) {
+      ctx.addIssue({ code: "custom", path: ["PAYMENT_ALLOW_LIVE"], message: "must be false on a beta server" });
     }
     const r2 = [env.R2_ACCOUNT_ID, env.R2_ACCESS_KEY_ID, env.R2_SECRET_ACCESS_KEY].filter(Boolean).length;
     if (r2 !== 0 && r2 !== 3) {

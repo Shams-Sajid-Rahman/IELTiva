@@ -41,7 +41,7 @@ type SectionFull = {
   writingTasks: { id: string; taskType: string; prompt: string; minWords: number; suggestedMinutes: number }[];
   speakingQuestions: { id: string; part: string; prompt: string; prepSeconds: number | null; maxAnswerSeconds: number }[];
 };
-type VersionFull = { id: string; examId: string; versionNumber: number; status: string; publishedAt: string | null; provenance: string; sourceNote: string | null; settings: { navigation?: string; reviewPolicy?: string }; sections: SectionFull[] };
+type VersionFull = { id: string; examId: string; versionNumber: number; status: string; publishedAt: string | null; approvedAt: string | null; reviewNote: string | null; createdById: string | null; provenance: string; sourceNote: string | null; settings: { navigation?: string; reviewPolicy?: string }; sections: SectionFull[] };
 
 const errorMessage = (error: unknown, fallback: string) => {
   if (error instanceof ApiRequestError) {
@@ -449,15 +449,21 @@ function ValidationPanel({ versionId }: { versionId: string }) {
 
 function VersionEditor({ versionId, examType }: { versionId: string; examType: string | null }) {
   const t = useTranslations("examAdmin");
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const query = useApiQuery<VersionFull>(`/admin/exam-versions/${versionId}`);
   const publish = useApiAction(() => api.post<{ warnings: string[] }>(`/admin/exam-versions/${versionId}/publish`));
   const archive = useApiAction(() => api.post(`/admin/exam-versions/${versionId}/archive`), t("archived"));
+  const submitReview = useApiAction(() => api.post(`/admin/exam-versions/${versionId}/submit-review`), t("sentForReview"));
+  const withdraw = useApiAction(() => api.post(`/admin/exam-versions/${versionId}/withdraw-review`), t("saved"));
+  const decide = useApiAction((body: { decision: "APPROVE" | "REQUEST_CHANGES"; note: string | null }) => api.post(`/admin/exam-versions/${versionId}/review`, body), t("saved"));
+  const [changesOpen, setChangesOpen] = useState(false);
   const update = useApiAction((body: object) => api.patch(`/admin/exam-versions/${versionId}`, body), t("saved"));
   return (
     <QueryBoundary query={query}>
       {(version) => {
-        const editable = !version.publishedAt;
+        const inReview = version.status === "IN_REVIEW";
+        const editable = !version.publishedAt && !inReview;
+        const isAuthor = version.createdById === user?.id;
         return (
           <div className="space-y-4">
             <Card className="shadow-soft">
@@ -479,11 +485,25 @@ function VersionEditor({ versionId, examType }: { versionId: string; examType: s
                   <p className="text-muted-foreground text-sm">{t("lockedBody")}</p>
                 )}
                 {editable && <p className="text-muted-foreground text-sm">{t("rightsNote")}</p>}
+                {inReview && <p className="bg-muted rounded-lg p-3 text-sm">{version.approvedAt ? t("approvedBody") : t("inReviewBody")}</p>}
+                {version.reviewNote && <p className="rounded-lg border p-3 text-sm"><span className="font-medium">{t("reviewerNote")}</span> <span className="whitespace-pre-wrap">{version.reviewNote}</span></p>}
                 <ValidationPanel versionId={versionId} />
                 <div className="flex flex-wrap gap-2">
                   <VersionPreview version={version} />
                   {editable && <SectionAddForm versionId={versionId} />}
-                  {editable && hasPermission("content.publish") && (
+                  {editable && <ConfirmButton size="default" label={t("sendForReview")} title={t("sendForReview")} description={t("sendForReviewBody")} onConfirm={() => submitReview.mutate()} />}
+                  {inReview && !version.approvedAt && hasPermission("content.review") && !isAuthor && <ConfirmButton size="default" label={t("approveVersion")} title={t("approveVersion")} description={t("approveVersionBody")} onConfirm={() => decide.mutate({ decision: "APPROVE", note: null })} />}
+                  {inReview && !version.approvedAt && hasPermission("content.review") && !isAuthor && (
+                    <FormDialog open={changesOpen} onOpenChange={setChangesOpen} title={t("requestChanges")} trigger={<Button variant="outline">{t("requestChanges")}</Button>}>
+                      <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); const note = String(new FormData(event.currentTarget).get("note") ?? "").trim(); decide.mutate({ decision: "REQUEST_CHANGES", note }, { onSuccess: () => setChangesOpen(false) }); }}>
+                        <TextAreaField name="note" label={t("whatToChange")} rows={4} required />
+                        <Button type="submit" disabled={decide.isPending}>{t("requestChanges")}</Button>
+                      </form>
+                    </FormDialog>
+                  )}
+                  {inReview && !version.approvedAt && isAuthor && <p className="text-muted-foreground self-center text-sm">{t("secondPerson")}</p>}
+                  {inReview && <ConfirmButton size="default" label={t("withdraw")} title={t("withdraw")} description={t("withdrawBody")} onConfirm={() => withdraw.mutate()} />}
+                  {!version.publishedAt && hasPermission("content.publish") && (
                     <ConfirmButton
                       size="default"
                       variant="default"

@@ -13,7 +13,7 @@ import { withCorrelationId } from "./utils/context.js";
 import { createApiRouter } from "./routes/index.js";
 import type { AppDependencies } from "./types/app.js";
 
-export function createApp({ env, logger, checkDatabase, authRouter, platformRouter, paymentCallbackRouter, probeRouter }: AppDependencies): Express {
+export function createApp({ env, logger, checkDatabase, authRouter, platformRouter, paymentCallbackRouter, probeRouter, publicRouter }: AppDependencies): Express {
   const app = express();
 
   app.disable("x-powered-by");
@@ -36,7 +36,7 @@ export function createApp({ env, logger, checkDatabase, authRouter, platformRout
   app.use(
     API_PREFIX,
     csrfProtection(env.CSRF_SECRET, env.FRONTEND_URL),
-    createApiRouter({ env, checkDatabase, authRouter, platformRouter, probeRouter }),
+    createApiRouter({ env, checkDatabase, authRouter, platformRouter, probeRouter, publicRouter }),
   );
 
   app.use(notFoundHandler);

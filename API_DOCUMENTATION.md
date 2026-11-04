@@ -330,6 +330,27 @@ Every `/analytics` route works on the signed-in student's own data.
 | GET | `/admin/operations` | `operations.read` | Health, queues, workers, errors |
 | GET | `/health/live`, `/health/ready` | Public | For load balancers |
 
+## Review, release and feedback (built)
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/release/state` | Public | Channel, switches and maintenance message. No personal data |
+| GET | `/admin/release` | `release.manage` | Switches and channel |
+| PUT | `/admin/release/flags/:key`, `/admin/release/maintenance` | `release.manage` | Change a switch or the message |
+| GET, POST, DELETE | `/admin/release/beta` | `release.manage` | The private beta list. Sends nothing |
+| POST | `/feedback` | Signed in | Sends feedback |
+| GET, PATCH | `/admin/feedback` | `support.manage` | Feedback queue |
+| GET, POST | `/admin/incidents`, `/admin/incidents/:id/updates` | `support.manage` | Incident records |
+| GET, POST, DELETE | `/writing/submissions/:id/review`, `/speaking/submissions/:id/review` | Own | Ask for, read or cancel an instructor review |
+| GET, POST | `/admin/reviews`, `/admin/reviews/:id` | `assessments.review` | Queue and marking, with no student name |
+| GET | `/admin/reviews/:id/audio` | `assessments.review` | The recording |
+| POST | `/admin/exam-versions/:id/submit-review`, `/withdraw-review` | `content.write` | Send for review or take back |
+| POST | `/admin/exam-versions/:id/review` | `content.review` | Approve or request changes. Not the author |
+| PUT, GET | `/admin/calibration/samples/:id/audio` | `calibration.manage`, or also `calibration.mark` to read | Speaking sample recording |
+| POST | `/admin/calibration/datasets/:id/pronunciation-check` | `calibration.manage` | Compares measures with human marks |
+
+A switched-off feature returns 503. Sign-in and registration return 403 for people not on a required beta list.
+
 ## AI, tutor, consent and calibration (built)
 
 All routes need a signed-in user. AI routes return 503 until their keys and Redis are set up, and 403 until the student has consented.

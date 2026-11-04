@@ -2,7 +2,7 @@
 
 An AI-assisted IELTS preparation platform, launching first in Bangladesh and designed for international use.
 
-> **Status: Phase 9 finished, not yet run end to end.** Phases 5 to 9 add AI feedback, prepaid packages and payments (sandbox only), analytics, personal study planning, background workers, private file storage, monitoring, account deletion and data export. As the owner asked, none of this has been tested. It passes type checks, lint and production builds only. See [SECURITY.md](SECURITY.md) for what is needed before real use.
+> **Status: Phase 10 finished. Not launch-ready, and not yet run end to end.** Phases 5 to 10 add AI feedback, prepaid packages and payments (sandbox only), analytics, study planning, background workers, private file storage, monitoring, privacy tools, instructor review and beta controls. As the owner asked, none of this has been tested. It passes type checks, lint and production builds only. See [FEATURE_STATUS.md](FEATURE_STATUS.md).
 
 IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band scores will be estimates, and they won't be shown publicly until validated against human-marked samples.
 
@@ -26,7 +26,14 @@ IELTiva isn't affiliated with or endorsed by the IELTS partners. Any AI band sco
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Worker, Redis, R2, caching, monitoring, deployment |
 | [SECURITY.md](SECURITY.md) | Security controls, review findings, known gaps, launch checks |
 | [LEGAL_REVIEW.md](LEGAL_REVIEW.md) | Data held and questions for a qualified lawyer |
-| [.env.example](.env.example) | Environment variables |
+| [FEATURE_STATUS.md](FEATURE_STATUS.md) | What's built, what's missing, what's waiting on people |
+| [CONTENT_WORKFLOW.md](CONTENT_WORKFLOW.md) | Exam approval and AI calibration, for instructors |
+| [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) | Deployment, backup, migration, alerts, incidents, rollback |
+| [FINAL_TEST_CHECKLIST.md](FINAL_TEST_CHECKLIST.md) | Final system testing, after Phase 11 |
+| [SUPPORT.md](SUPPORT.md) | Answers for support staff |
+| [RELEASE_NOTES.md](RELEASE_NOTES.md) | What each release contains |
+| [docs/legal/](docs/legal/) | Privacy, terms and refund **drafts, unreviewed and not for publication** |
+| [.env.example](.env.example), [.env.beta.example](.env.beta.example) | Environment variables |
 
 ## Planned stack
 

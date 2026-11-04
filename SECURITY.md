@@ -70,7 +70,8 @@ Prompt injection can't be fully prevented. These measures limit what a successfu
 4. **Personal details in Writing and Speaking** aren't removed before AI assessment, because evidence must quote the student exactly. This is covered by consent.
 5. **Encryption at rest** is left to the database and storage hosts. Confirm it when choosing them.
 6. **Dependency scanning** runs only when someone runs `npm audit`.
-7. **`npm audit --omit=dev`** reported no known vulnerabilities at the time of writing. That only covers known issues in dependencies, not this code.
+7. **The Marker role is the only proof of being qualified.** The system can't check qualifications, so administrators must assign it carefully.
+8. **`npm audit --omit=dev`** reported no known vulnerabilities at the time of writing. That only covers known issues in dependencies, not this code.
 
 ## Before launch
 
@@ -81,6 +82,7 @@ Prompt injection can't be fully prevented. These measures limit what a successfu
 - [ ] Load test
 - [ ] Rotate every secret used in development
 - [ ] Confirm that R2 buckets are private and that `TRUST_PROXY` is correct
-- [ ] Set up alerts
+- [ ] Set up the outside uptime monitor
+- [ ] Set `AI_DAILY_SPEND_LIMIT_USD`
 - [ ] Enforce the content security policy
 - [ ] Finish the legal review in `LEGAL_REVIEW.md`

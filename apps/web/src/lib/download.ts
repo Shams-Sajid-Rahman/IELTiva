@@ -1,9 +1,9 @@
 import { api, ApiRequestError } from "./api-client";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";
 
 async function fetchFile(path: string) {
-  return fetch(`${BASE}${path}`, { credentials: "include" });
+  return fetch(`${API_BASE}${path}`, { credentials: "include" });
 }
 
 /**

@@ -218,6 +218,37 @@ enum RefundStatus {
   REJECTED
 }
 
+enum InstructorReviewStatus {
+  REQUESTED
+  COMPLETED
+  CANCELED
+}
+
+enum BetaAccessStatus {
+  ALLOWED
+  REVOKED
+}
+
+enum FeedbackStatus {
+  NEW
+  TRIAGED
+  RESOLVED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  MITIGATED
+  RESOLVED
+}
+
 enum ReportKind {
   PROGRESS_REPORT
   DATA_EXPORT
@@ -251,6 +282,7 @@ enum NotificationType {
 
 enum PublicationAction {
   SUBMITTED_FOR_REVIEW
+  APPROVED
   PUBLISHED
   ARCHIVED
   RESTORED_TO_DRAFT
@@ -317,6 +349,13 @@ model User {
   entitlements            UserEntitlement[]
   creditLedger            CreditLedger[]
   reports                 GeneratedReport[]
+  reviewsRequested        InstructorReview[]            @relation("ReviewRequester")
+  reviewsCompleted        InstructorReview[]            @relation("ReviewReviewer")
+  betaFeedback            BetaFeedback[]
+  betaAccessAdded         BetaAccess[]
+  flagsUpdated            FeatureFlag[]
+  incidentsOpened         Incident[]
+  incidentUpdates         IncidentUpdate[]
   refundsProcessed        RefundRecord[]
   auditLogs               AuditLog[]
   notifications           UserNotification[]
@@ -747,6 +786,9 @@ model ExamVersion {
   settings         Json              @default("{}")
   createdById      String?           @map("created_by_id") @db.Uuid
   reviewedById     String?           @map("reviewed_by_id") @db.Uuid
+  reviewNote       String?           @map("review_note")
+  submittedAt      DateTime?         @map("submitted_at") @db.Timestamptz(3)
+  approvedAt       DateTime?         @map("approved_at") @db.Timestamptz(3)
   publishedAt      DateTime?         @map("published_at") @db.Timestamptz(3)
   archivedAt       DateTime?         @map("archived_at") @db.Timestamptz(3)
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1025,11 +1067,12 @@ model WritingSubmission {
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  sectionAttempt SectionAttempt      @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
-  writingTask    WritingTask         @relation(fields: [writingTaskId], references: [id], onDelete: Restrict)
-  parent         WritingSubmission?  @relation("WritingRevision", fields: [parentSubmissionId], references: [id], onDelete: SetNull)
-  revisions      WritingSubmission[] @relation("WritingRevision")
-  results        AssessmentResult[]
+  sectionAttempt   SectionAttempt      @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  instructorReview InstructorReview?
+  writingTask      WritingTask         @relation(fields: [writingTaskId], references: [id], onDelete: Restrict)
+  parent           WritingSubmission?  @relation("WritingRevision", fields: [parentSubmissionId], references: [id], onDelete: SetNull)
+  revisions        WritingSubmission[] @relation("WritingRevision")
+  results          AssessmentResult[]
 
   @@unique([sectionAttemptId, writingTaskId])
   @@index([writingTaskId])
@@ -1055,6 +1098,7 @@ model SpeakingSubmission {
   updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   sectionAttempt   SectionAttempt     @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  instructorReview InstructorReview?
   speakingQuestion SpeakingQuestion   @relation(fields: [speakingQuestionId], references: [id], onDelete: Restrict)
   results          AssessmentResult[]
 
@@ -1326,6 +1370,7 @@ model CalibrationSample {
   split               CalibrationSplit
   prompt              String
   responseText        String                  @map("response_text")
+  audioStorageKey     String?                 @map("audio_storage_key")
   consentVersion      String                  @map("consent_version")
   deidentifiedAt      DateTime                @map("deidentified_at") @db.Timestamptz(3)
   status              CalibrationSampleStatus @default(NEEDS_MARKS)
@@ -1754,6 +1799,121 @@ model OperationalEvent {
   @@unique([source, code, bucketStart])
   @@index([bucketStart])
   @@map("operational_events")
+}
+
+// ---------- Human review and release controls ----------
+
+/// A qualified instructor's own assessment, kept apart from AI results so neither can overwrite the other.
+model InstructorReview {
+  id                   String                 @id @default(uuid(7)) @db.Uuid
+  writingSubmissionId  String?                @unique @map("writing_submission_id") @db.Uuid
+  speakingSubmissionId String?                @unique @map("speaking_submission_id") @db.Uuid
+  requestedById        String?                @map("requested_by_id") @db.Uuid
+  reviewerId           String?                @map("reviewer_id") @db.Uuid
+  status               InstructorReviewStatus @default(REQUESTED)
+  overallBand          Decimal?               @map("overall_band") @db.Decimal(2, 1)
+  criterionBands       Json?                  @map("criterion_bands")
+  note                 String?
+  requestedAt          DateTime               @default(now()) @map("requested_at") @db.Timestamptz(3)
+  completedAt          DateTime?              @map("completed_at") @db.Timestamptz(3)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  writingSubmission  WritingSubmission?  @relation(fields: [writingSubmissionId], references: [id], onDelete: Cascade)
+  speakingSubmission SpeakingSubmission? @relation(fields: [speakingSubmissionId], references: [id], onDelete: Cascade)
+  requestedBy        User?               @relation("ReviewRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewer           User?               @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, requestedAt])
+  @@index([requestedById, requestedAt])
+  @@index([reviewerId])
+  @@map("instructor_reviews")
+}
+
+/// A stored choice for one switch. A switch with no row uses its default from the shared definitions.
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+  @@map("feature_flags")
+}
+
+/// Who may use a private beta. Adding an address sends nothing, so it isn't an invitation.
+model BetaAccess {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  email     String           @unique
+  status    BetaAccessStatus @default(ALLOWED)
+  note      String?
+  addedById String?          @map("added_by_id") @db.Uuid
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  addedBy User? @relation(fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@index([addedById])
+  @@map("beta_access")
+}
+
+model BetaFeedback {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  userId    String?        @map("user_id") @db.Uuid
+  category  String
+  message   String
+  page      String?
+  status    FeedbackStatus @default(NEW)
+  staffNote String?        @map("staff_note")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("beta_feedback")
+}
+
+model Incident {
+  id                   String           @id @default(uuid(7)) @db.Uuid
+  title                String
+  severity             IncidentSeverity
+  status               IncidentStatus   @default(OPEN)
+  summary              String
+  personalDataAffected Boolean          @default(false) @map("personal_data_affected")
+  paymentsAffected     Boolean          @default(false) @map("payments_affected")
+  openedById           String?          @map("opened_by_id") @db.Uuid
+  startedAt            DateTime         @default(now()) @map("started_at") @db.Timestamptz(3)
+  resolvedAt           DateTime?        @map("resolved_at") @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  openedBy User?            @relation(fields: [openedById], references: [id], onDelete: SetNull)
+  updates  IncidentUpdate[]
+
+  @@index([status, startedAt])
+  @@index([openedById])
+  @@map("incidents")
+}
+
+model IncidentUpdate {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  incidentId String          @map("incident_id") @db.Uuid
+  authorId   String?         @map("author_id") @db.Uuid
+  status     IncidentStatus?
+  body       String
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, createdAt])
+  @@index([authorId])
+  @@map("incident_updates")
 }
 
 // ---------- G. Platform administration ----------

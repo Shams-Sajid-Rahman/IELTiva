@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { BandScore } from "@/components/feedback/band-score";
 import { ConfirmButton } from "@/features/platform/ui";
+import { useFlag } from "@/features/release/release";
 import { api, ApiRequestError } from "@/lib/api-client";
 import { ConsentButton, useConsents, type ConsentType } from "./consent";
 
@@ -155,8 +156,75 @@ function Feedback({ path, types, speaking }: { path: string; types: ConsentType[
   );
 }
 
-export const WritingFeedback = ({ submissionId }: { submissionId: string }) => <Feedback path={`/writing/submissions/${submissionId}/assessment`} types={["AI_PROCESSING"]} speaking={false} />;
-export const SpeakingFeedback = ({ submissionId }: { submissionId: string }) => <Feedback path={`/speaking/submissions/${submissionId}/assessment`} types={["AI_PROCESSING", "SPEECH_PROCESSING"]} speaking />;
+type InstructorReview = { status: "REQUESTED" | "COMPLETED"; overallBand: number | null; criterionBands: Record<string, number>; note: string | null; completedAt: string | null } | null;
+
+/** A person's assessment, kept apart from the AI's and clearly labelled as such. */
+function InstructorReviewCard({ path }: { path: string }) {
+  const t = useTranslations("ai.review");
+  const criteria = useTranslations("ai.report.criteria");
+  const enabled = useFlag("reviews.instructor");
+  const client = useQueryClient();
+  const query = useQuery({ queryKey: [path], queryFn: () => api.get<InstructorReview>(path) });
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const review = query.data;
+
+  async function change(action: () => Promise<unknown>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      await client.invalidateQueries({ queryKey: [path] });
+    } catch (caught) {
+      setError(caught instanceof ApiRequestError ? caught.message : t("failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (query.isPending || (!review && !enabled)) return null;
+  return (
+    <section aria-label={t("title")} className="mt-4 rounded-lg border p-4 text-sm">
+      <h4 className="font-sans font-semibold tracking-normal">{t("title")}</h4>
+      {review?.status === "COMPLETED" ? (
+        <div className="mt-2 space-y-2">
+          <p className="text-muted-foreground">{t("notOfficial")}</p>
+          {review.overallBand !== null && <p>{t("overall")} <span className="font-semibold tabular-nums">{review.overallBand.toFixed(1)}</span></p>}
+          {Object.keys(review.criterionBands).length > 0 && (
+            <ul className="divide-y">
+              {Object.entries(review.criterionBands).map(([key, band]) => <li key={key} className="flex justify-between gap-3 py-1.5"><span>{criteria.has(key) ? criteria(key) : key}</span><span className="font-medium tabular-nums">{band.toFixed(1)}</span></li>)}
+            </ul>
+          )}
+          {review.note && <p className="leading-relaxed whitespace-pre-wrap">{review.note}</p>}
+        </div>
+      ) : review?.status === "REQUESTED" ? (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <p className="flex-1 basis-48">{t("waiting")}</p>
+          <button type="button" className="text-primary underline underline-offset-2" disabled={busy} onClick={() => void change(() => api.delete(path))}>{t("cancel")}</button>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <p className="text-muted-foreground flex-1 basis-48">{t("offer")}</p>
+          <button type="button" className="text-primary underline underline-offset-2" disabled={busy} onClick={() => void change(() => api.post(path))}>{t("ask")}</button>
+        </div>
+      )}
+      {error && <p role="alert" className="text-destructive mt-2">{error}</p>}
+    </section>
+  );
+}
+
+export const WritingFeedback = ({ submissionId }: { submissionId: string }) => (
+  <>
+    <Feedback path={`/writing/submissions/${submissionId}/assessment`} types={["AI_PROCESSING"]} speaking={false} />
+    <InstructorReviewCard path={`/writing/submissions/${submissionId}/review`} />
+  </>
+);
+export const SpeakingFeedback = ({ submissionId }: { submissionId: string }) => (
+  <>
+    <Feedback path={`/speaking/submissions/${submissionId}/assessment`} types={["AI_PROCESSING", "SPEECH_PROCESSING"]} speaking />
+    <InstructorReviewCard path={`/speaking/submissions/${submissionId}/review`} />
+  </>
+);
 
 /** A student can delete their own voice data whenever they like. */
 export function DeleteRecording({ submissionId, onDeleted }: { submissionId: string; onDeleted: () => void }) {

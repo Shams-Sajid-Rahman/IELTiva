@@ -7,7 +7,9 @@ import { StatCard } from "@/components/feedback/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/features/auth/auth-provider";
+import { PrivateAudio } from "@/features/release/release";
 import { api, ApiRequestError } from "@/lib/api-client";
 import { useApiAction, useApiPage, useApiQuery } from "../hooks";
 import { useLabels } from "../labels";
@@ -115,6 +117,8 @@ function MarkForm({ sample, criteria, action, onDone }: { sample: MarkSample; cr
     <form className="space-y-3 rounded-xl border p-4" onSubmit={(event) => void submit(event)}>
       <p className="text-sm font-semibold">{sample.reference}</p>
       <p className="text-muted-foreground text-sm whitespace-pre-wrap">{sample.prompt}</p>
+      {criteria.includes("PRONUNCIATION") && <PrivateAudio path={`/admin/calibration/samples/${sample.id}/audio`} label={t("listen")} />}
+      {criteria.includes("PRONUNCIATION") && <p className="text-muted-foreground text-sm">{t("listenNote")}</p>}
       <p className="bg-muted max-h-72 overflow-y-auto rounded-lg p-3 text-sm leading-relaxed whitespace-pre-wrap">{sample.responseText}</p>
       {sample.records && <p className="text-muted-foreground text-sm">{t("existingMarks", { marks: sample.records.map((row) => Number(row.overallBand).toFixed(1)).join(", ") })}</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -153,6 +157,21 @@ function RunCard({ run, canRelease, canApprove }: { run: Run; canRelease: boolea
   const approve = useApiAction(() => api.post(`/admin/calibration/runs/${run.id}/approve`), t("saved"));
   const release = useApiAction((visibility: string) => api.post(`/admin/calibration/runs/${run.id}/release`, { visibility }), t("saved"));
   const { metrics } = run;
+  if (run.taskKey === "pronunciation.validate") {
+    const check = metrics as unknown as { count: number; skipped: number; correlation: number | null } | null;
+    return (
+      <li className="space-y-2 p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium">{t("pronunciationCheck")}</p>
+          <Badge variant="outline">{t(`splits.${run.split}`)}</Badge>
+          <Badge variant="secondary">{t(`runStatus.${run.status}`)}</Badge>
+        </div>
+        {run.errorMessage && <p role="alert" className="text-destructive">{run.errorMessage}</p>}
+        {check && <p>{t("pronunciationResult", { count: check.count, skipped: check.skipped, correlation: check.correlation === null ? "-" : check.correlation.toFixed(2) })}</p>}
+        <p className="text-muted-foreground">{t("pronunciationNote")}</p>
+      </li>
+    );
+  }
   return (
     <li className="space-y-2 p-4 text-sm">
       <div className="flex flex-wrap items-center gap-2">
@@ -199,7 +218,13 @@ function DatasetDetail({ dataset }: { dataset: Dataset }) {
   const criteria = dataset.skill === "WRITING" ? WRITING_CRITERIA(dataset.taskType) : SPEAKING_CRITERIA;
   const full = useApiQuery<DatasetFull>(`/admin/calibration/datasets/${dataset.id}`, { enabled: manage });
   const [open, setOpen] = useState(false);
-  const add = useApiAction((body: object) => api.post(`/admin/calibration/datasets/${dataset.id}/samples`, body), t("saved"));
+  const speaking = dataset.skill === "SPEAKING";
+  const add = useApiAction(async ({ audio, ...body }: Record<string, unknown> & { audio?: File | null }) => {
+    const sample = await api.post<{ id: string }>(`/admin/calibration/datasets/${dataset.id}/samples`, body);
+    if (audio) await api.put(`/admin/calibration/samples/${sample.id}/audio`, audio);
+    return sample;
+  }, t("saved"));
+  const pronunciation = useApiAction((split: string) => api.post(`/admin/calibration/datasets/${dataset.id}/pronunciation-check`, { split }), t("runStarted"));
   const freeze = useApiAction(() => api.post(`/admin/calibration/datasets/${dataset.id}/freeze`), t("frozenDone"));
   const approveTargets = useApiAction(() => api.post(`/admin/calibration/datasets/${dataset.id}/approve-thresholds`), t("saved"));
   const run = useApiAction((body: object) => api.post(`/admin/calibration/datasets/${dataset.id}/runs`, body), t("runStarted"));
@@ -219,11 +244,17 @@ function DatasetDetail({ dataset }: { dataset: Dataset }) {
                   title={t("addSample")}
                   trigger={<Button variant="outline"><Plus aria-hidden /> {t("addSample")}</Button>}
                 >
-                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); add.mutate({ reference: String(form.get("reference")), split: String(form.get("split")), prompt: String(form.get("prompt")), responseText: String(form.get("responseText")), consentVersion: String(form.get("consentVersion")) }, { onSuccess: () => setOpen(false) }); }}>
+                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); add.mutate({ audio: speaking ? (form.get("audio") as File | null) : null, reference: String(form.get("reference")), split: String(form.get("split")), prompt: String(form.get("prompt")), responseText: String(form.get("responseText")), consentVersion: String(form.get("consentVersion")) }, { onSuccess: () => setOpen(false) }); }}>
                     <InputField name="reference" label={t("reference")} required hint={t("referenceHint")} />
                     <SelectBox name="split" label={t("split")} options={["TUNING", "VALIDATION", "TEST"].map((value) => ({ value, label: t(`splits.${value}`) }))} />
                     <TextAreaField name="prompt" label={t("taskPrompt")} rows={3} required />
-                    <TextAreaField name="responseText" label={t("response")} rows={8} required />
+                    {speaking && (
+                      <div className="space-y-2">
+                        <Label htmlFor="sample-audio">{t("recording")}</Label>
+                        <input id="sample-audio" name="audio" type="file" accept="audio/*" required className="block w-full text-sm" />
+                      </div>
+                    )}
+                    <TextAreaField name="responseText" label={speaking ? t("transcript") : t("response")} rows={8} required />
                     <InputField name="consentVersion" label={t("consentVersion")} required />
                     <p className="text-muted-foreground text-sm">{t("deidentifyNote")}</p>
                     <Button type="submit" disabled={add.isPending}>{t("addSample")}</Button>
@@ -233,6 +264,7 @@ function DatasetDetail({ dataset }: { dataset: Dataset }) {
               {!data.thresholdsApprovedAt && !data.frozenAt && hasPermission("assessments.review") && <ConfirmButton size="default" label={t("approveTargets")} title={t("approveTargets")} description={t("approveTargetsBody")} onConfirm={() => approveTargets.mutate()} />}
               {!data.frozenAt && <ConfirmButton size="default" label={t("freeze")} title={t("freeze")} description={t("freezeBody")} onConfirm={() => freeze.mutate()} />}
               {data.frozenAt && dataset.skill === "WRITING" && ["VALIDATION", "TEST"].map((split) => <Button key={split} variant="outline" disabled={run.isPending} onClick={() => run.mutate({ split, taskKey: "writing.assess" })}>{t("runOn", { split: t(`splits.${split}`) })}</Button>)}
+              {data.frozenAt && speaking && ["VALIDATION", "TEST"].map((split) => <Button key={split} variant="outline" disabled={pronunciation.isPending} onClick={() => pronunciation.mutate(split)}>{t("runPronunciation", { split: t(`splits.${split}`) })}</Button>)}
               {data.frozenAt && <Badge>{t("frozen")}</Badge>}
             </div>
           </CardContent>

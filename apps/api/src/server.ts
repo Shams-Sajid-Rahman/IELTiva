@@ -8,6 +8,8 @@ import { createAuthRouter } from "./routes/auth.routes.js";
 import { createPaymentCallbackRouter } from "./routes/billing.routes.js";
 import { createProbeRouter } from "./routes/ops.routes.js";
 import { createPlatformRouter } from "./routes/platform.routes.js";
+import { createReleasePublicRouter } from "./routes/release.routes.js";
+import { createReleaseService } from "./services/release/release.service.js";
 import { createAuthService } from "./services/auth.service.js";
 import { createEmailProvider } from "./services/email/index.js";
 import { createGoogleProvider } from "./services/google-oauth.service.js";
@@ -28,7 +30,8 @@ const tokens = createTokenService(env);
 const email = createEmailProvider(env, logger);
 const google = createGoogleProvider(env);
 const notifications = createNotificationService(prisma);
-const auth = createAuthService({ prisma, env, tokens, email, logger, notifyUser: notifications.notifyUser });
+const release = createReleaseService(prisma, { channel: env.RELEASE_CHANNEL });
+const auth = createAuthService({ prisma, env, tokens, email, logger, notifyUser: notifications.notifyUser, accessGate: release });
 const events = createEventRecorder(prisma, logger);
 const storage = withErrorTracking(createStorage(env), (code, name) => events.record("storage", code, name));
 const redis = createRedisClient(env.REDIS_URL, logger);
@@ -36,7 +39,7 @@ const queues = createJobQueues(env.REDIS_URL, logger);
 const cache = createCache({ shared: redis ? createRedisStore(redis) : null });
 useRedisForRateLimits(redis);
 const { authenticateUser } = createAuthMiddleware({ tokens, auth });
-const services = createPlatformServices({ prisma, env, email, logger, storage, auth, notifications, aiEnv: env, billingEnv: env, cache, redis, queues, redisUrl: env.REDIS_URL, audioProbe: probeAudio });
+const services = createPlatformServices({ prisma, env, email, logger, storage, auth, notifications, aiEnv: env, billingEnv: env, cache, redis, queues, redisUrl: env.REDIS_URL, audioProbe: probeAudio, release });
 const platformRouter = createPlatformRouter(services, authenticateUser);
 
 const app = createApp({
@@ -49,6 +52,7 @@ const app = createApp({
   platformRouter,
   paymentCallbackRouter: createPaymentCallbackRouter(services.billing, logger, env.FRONTEND_URL),
   probeRouter: createProbeRouter(services.operations),
+  publicRouter: createReleasePublicRouter(release),
 });
 
 const server = app.listen(env.PORT, () => {

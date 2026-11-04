@@ -50,7 +50,9 @@ import type { BillingRuntime } from "../services/billing/runtime.js";
 import type { ResourceFileService } from "../services/files/resource-files.service.js";
 import type { OperationsService } from "../services/ops/operations.service.js";
 import type { PrivacyService } from "../services/privacy/privacy.service.js";
+import type { ReleaseService } from "../services/release/release.service.js";
 import type { ReportService } from "../services/reports/report.service.js";
+import type { InstructorReviewService } from "../services/review/instructor-review.service.js";
 import type { Actor } from "../types/platform.js";
 import { sendPage, sendSuccess } from "../utils/api-response.js";
 import { AppError } from "../utils/app-error.js";
@@ -60,6 +62,8 @@ export type PlatformServices = ExamServices & {
   billing: BillingRuntime;
   analytics: AnalyticsServices;
   operations: OperationsService;
+  release: ReleaseService;
+  reviews: InstructorReviewService;
   reports: ReportService;
   privacy: PrivacyService;
   resourceFiles: ResourceFileService;
