@@ -15,10 +15,10 @@ An AI-assisted IELTS preparation service, independent of the IELTS partners. It 
 | Name, email, password hash, optional photo, country, timezone | Account | Until deletion | Email provider (Resend) |
 | Target band, exam date, goals | Personal planning | Until deletion | Nobody |
 | Answers, scores, practice activity | Results and analytics | Until deletion | Nobody |
-| Writing | Feedback | Until deletion | **Anthropic (AI)**, after consent |
+| Writing | Feedback | Until deletion | **The AI provider (Google Gemini or Anthropic)**, after consent |
 | Voice recordings | Speaking feedback | 90 days by default, and students can delete sooner | **Microsoft Azure (speech)**, after consent, plus Cloudflare R2 for storage |
-| Transcripts and pronunciation measures | Speaking feedback | Until deletion | **Anthropic** receives the transcript |
-| Tutor conversations | Tutoring | Until deletion | **Anthropic**, with obvious emails and numbers removed first |
+| Transcripts and pronunciation measures | Speaking feedback | Until deletion | **The AI provider** receives the transcript |
+| Tutor conversations | Tutoring | Until deletion | **The AI provider**, with obvious emails and numbers removed first |
 | Feedback messages | Improving the service | Until deletion | Nobody |
 | Instructor reviews | Human marking at the student's request | Until deletion | Instructors, without the student's name |
 | Beta list email addresses | Private beta access | Until removed | Nobody |
@@ -60,9 +60,11 @@ Please confirm which apply before selling there. These are starting points only:
 
 ### Everywhere
 
+0. **Free AI plans:** Google may use and have people read what's sent through the free Gemini plan. Development uses it with made-up data, and beta and production servers refuse to start on it. Is a paid plan's data handling acceptable for real students?
+
 1. **Minors:** IELTS candidates can be under 18. There's no age check today. Is a minimum age or parental consent needed?
 2. **Automated assessment:** AI feedback shapes study decisions. Do rules on automated decisions or AI transparency apply?
-3. **Processor agreements** with Anthropic, Microsoft, Cloudflare, Resend and payment gateways: what's needed, and how long do they retain data?
+3. **Processor agreements** with the AI provider (Google or Anthropic), Microsoft, Cloudflare, Resend and payment gateways: what's needed, and how long do they retain data?
 4. **Retention periods:** are these right: 90 days for recordings, 365 for audit IPs, 7 for exports, 14 for the deletion window, and indefinite for practice data until deletion?
 5. **Can financial records be kept after deletion?** For how long, and what must the privacy notice say?
 6. **Calibration:** is the de-identification enough, and is the consent basis sound?

@@ -22,7 +22,7 @@ For whoever deploys and runs IELTiva. Nothing here has been run yet: Redis, R2, 
 | Redis | No AI assessment jobs or email, and caching and rate limits are per server. Reports are made during the request. |
 | R2 in development | Files go to `STORAGE_LOCAL_DIR` |
 | R2 in production | Uploads are refused. It never falls back to the server's disk. |
-| Anthropic or Azure keys | AI features report that they're unavailable |
+| AI provider or Azure keys | AI features report that they're unavailable |
 | Email key | Production logs an error and sends nothing |
 
 ## Background jobs

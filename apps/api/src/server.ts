@@ -57,7 +57,7 @@ const app = createApp({
 
 const server = app.listen(env.PORT, () => {
   logger.info(
-    { url: `${env.API_BASE_URL}${API_PREFIX}`, environment: env.NODE_ENV, emailProvider: email.name, googleSignIn: Boolean(google) },
+    { url: `${env.API_BASE_URL}${API_PREFIX}`, environment: env.NODE_ENV, emailProvider: email.name, googleSignIn: Boolean(google), aiProvider: env.AI_PROVIDER, aiReady: services.aiRuntime.ai.isConfigured() },
     "API listening",
   );
 });

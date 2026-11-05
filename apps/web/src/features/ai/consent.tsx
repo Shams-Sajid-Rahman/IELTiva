@@ -14,6 +14,8 @@ import { api } from "@/lib/api-client";
 
 export type ConsentType = "AI_PROCESSING" | "SPEECH_PROCESSING" | "CALIBRATION_USE";
 export type ConsentState = {
+  aiProviderName: string;
+  providerMayUseData: boolean;
   version: string;
   consents: { type: ConsentType; version: string; grantedAt: string; revokedAt: string | null }[];
   recordingRetentionDays: number;
@@ -22,7 +24,8 @@ export type ConsentState = {
   speechAvailable: boolean;
 };
 
-const has = (state: ConsentState | undefined, type: ConsentType) => Boolean(state?.consents.some((row) => row.type === type && !row.revokedAt));
+/** Consent to older wording doesn't count, because it may have named a different provider. */
+const has = (state: ConsentState | undefined, type: ConsentType) => Boolean(state?.consents.some((row) => row.type === type && !row.revokedAt && row.version === state.version));
 
 export function useConsents() {
   const query = useApiQuery<ConsentState>("/consents");
@@ -59,7 +62,8 @@ export function ConsentButton({ types, label, onReady, disabled, variant = "defa
             <DialogDescription>{t("intro")}</DialogDescription>
           </DialogHeader>
           <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed">
-            {types.includes("AI_PROCESSING") && <li>{t("aiPoint")}</li>}
+            {types.includes("AI_PROCESSING") && <li>{t("aiPoint", { provider: data?.aiProviderName ?? "" })}</li>}
+            {types.includes("AI_PROCESSING") && data?.providerMayUseData && <li className="font-medium">{t("mayUseData")}</li>}
             {types.includes("SPEECH_PROCESSING") && <li>{t("speechPoint")}</li>}
             {types.includes("SPEECH_PROCESSING") && <li>{t("retentionPoint", { days: data?.recordingRetentionDays ?? 90 })}</li>}
             <li>{t("withdrawPoint")}</li>
@@ -82,7 +86,7 @@ export function PrivacyTab() {
     <QueryBoundary query={query}>
       {(state) => {
         const rows: { type: ConsentType; title: string; body: string }[] = [
-          { type: "AI_PROCESSING", title: t("aiTitle"), body: t("aiBody") },
+          { type: "AI_PROCESSING", title: t("aiTitle"), body: `${t("aiBody", { provider: state.aiProviderName })}${state.providerMayUseData ? ` ${t("mayUseData")}` : ""}` },
           { type: "CALIBRATION_USE", title: t("calibrationTitle"), body: t("calibrationBody") },
         ];
         const speechOn = has(state, "SPEECH_PROCESSING");

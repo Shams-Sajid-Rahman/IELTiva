@@ -30,7 +30,7 @@ We never receive your card number or CVV. You enter those on the payment company
 
 | Who | What | When |
 |---|---|---|
-| Anthropic (AI) | Your writing, transcripts and tutor messages | Only after you agree |
+| [AI provider: Google Gemini on a paid plan, or Anthropic] | Your writing, transcripts and tutor messages | Only after you agree |
 | Microsoft Azure (speech) | Your recordings | Only after you agree |
 | Cloudflare (storage) | Stored files | Always, for files you create |
 | Resend (email) | Your email address and message | When we email you |

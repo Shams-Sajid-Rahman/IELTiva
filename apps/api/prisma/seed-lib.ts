@@ -165,7 +165,7 @@ export async function runSeed(prisma: PrismaClient, env: SeedEnv) {
   const provider = env.AI_PROVIDER;
   if (!provider) return;
   for (const { taskKey, tier, effort, envKey } of tierTasks) {
-    const modelId = env[envKey];
+    const modelId = env[provider === "gemini" ? envKey.replace("AI_MODEL", "GEMINI_MODEL") : envKey];
     if (!modelId) continue;
     await prisma.aIModelConfiguration.upsert({
       where: { taskKey_provider_modelId: { taskKey, provider, modelId } },

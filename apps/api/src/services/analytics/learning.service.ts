@@ -4,6 +4,7 @@ import type { PrismaClient, Skill } from "../../generated/prisma/client.js";
 import type { Actor } from "../../types/platform.js";
 import { AppError } from "../../utils/app-error.js";
 import type { AiService } from "../ai/ai.service.js";
+import { CONSENT_VERSION } from "../ai/assessment.service.js";
 import { buildRecommendations, suggestSchedule, type CatalogExam } from "./recommendations.js";
 import { dayInZone, type StudentAnalyticsService } from "./student.service.js";
 
@@ -125,7 +126,7 @@ export function createLearningService({ prisma, analytics, ai, notify }: { prism
      */
     async explain(actor: Actor) {
       if (!ai.isConfigured()) throw new AppError(503, "SERVICE_UNAVAILABLE", "AI explanations aren't available yet.");
-      const consent = await prisma.userConsent.findFirst({ where: { userId: actor.userId, type: "AI_PROCESSING", revokedAt: null } });
+      const consent = await prisma.userConsent.findFirst({ where: { userId: actor.userId, type: "AI_PROCESSING", revokedAt: null, version: CONSENT_VERSION } });
       if (!consent) throw new AppError(403, "FORBIDDEN", "Please give your consent first.", [{ path: "consent", message: "AI_PROCESSING" }]);
       const items = await recommendationsFor(actor);
       if (items.length === 0) return { text: null };

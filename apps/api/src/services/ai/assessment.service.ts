@@ -10,7 +10,8 @@ import { escapeForPrompt } from "./prompts.js";
 import type { AiQueue } from "./queue.js";
 import { fluencyMetrics, type SpeechProvider, type Transcription } from "./speech.provider.js";
 
-export const CONSENT_VERSION = "2026-11-1";
+/** Change this whenever the consent wording or the provider changes. Everyone is then asked again. */
+export const CONSENT_VERSION = "2026-11-2";
 export const MIN_WORDS_TO_ASSESS = 20;
 const DAILY_ASSESSMENT_LIMIT = 10;
 
@@ -53,7 +54,7 @@ export type AssessmentCredits = {
 
 export function createAssessmentService({ prisma, ai, queue, speech, storage, credits }: { prisma: PrismaClient; ai: AiService; queue: AiQueue | null; speech: SpeechProvider | null; storage: PrivateStorage; credits?: AssessmentCredits }) {
   async function requireConsent(userId: string, types: ("AI_PROCESSING" | "SPEECH_PROCESSING")[]) {
-    const rows = await prisma.userConsent.findMany({ where: { userId, type: { in: types }, revokedAt: null } });
+    const rows = await prisma.userConsent.findMany({ where: { userId, type: { in: types }, revokedAt: null, version: CONSENT_VERSION } });
     if (rows.length !== types.length) throw new AppError(403, "FORBIDDEN", "Please give your consent first.", [{ path: "consent", message: types.join(",") }]);
   }
 

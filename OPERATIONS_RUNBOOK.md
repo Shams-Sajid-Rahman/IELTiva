@@ -73,7 +73,7 @@ Staff with `operations.read` get in-app alerts at most hourly for: repeated erro
 | Approved models | `AI_ALLOWED_MODELS` |
 | Emergency stop | Switches in **Release controls** |
 
-**Set `AI_DAILY_SPEND_LIMIT_USD` before beta.** There's no platform limit until you do. Also set a limit in the Anthropic console, as a second safeguard. Review **Admin → AI usage** every week. Cost figures are estimates from reference prices, so compare them with the real bill.
+**Set `AI_DAILY_SPEND_LIMIT_USD` before beta.** There's no platform limit until you do. Also set a limit in the AI provider's console, as a second safeguard. Gemini models have no reference prices in the app yet, so their cost shows as unknown and the app's spending limit can't count them. Review **Admin → AI usage** every week. Cost figures are estimates from reference prices, so compare them with the real bill.
 
 ## Payment configuration
 

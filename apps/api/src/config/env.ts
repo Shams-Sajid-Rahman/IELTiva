@@ -32,11 +32,17 @@ const envSchema = z
     EMAIL_FROM: optionalText,
     STORAGE_LOCAL_DIR: optionalText,
     // AI features stay switched off until their keys are set.
-    AI_PROVIDER: z.string().default("anthropic"),
+    AI_PROVIDER: z.enum(["anthropic", "gemini"]).default("anthropic"),
     ANTHROPIC_API_KEY: optionalText,
     AI_MODEL_DEFAULT: z.string().default("claude-sonnet-5-5"),
     AI_MODEL_COMPLEX: z.string().default("claude-opus-5-5"),
     AI_MODEL_LIGHT: z.string().default("claude-haiku-5-5"),
+    GEMINI_API_KEY: optionalText,
+    GEMINI_MODEL_DEFAULT: z.string().default("gemini-3.6-flash"),
+    GEMINI_MODEL_COMPLEX: z.string().default("gemini-3.6-flash"),
+    GEMINI_MODEL_LIGHT: z.string().default("gemini-3.5-flash-lite"),
+    // Say true only with paid billing on the Google project. The free plan's content may be used and read by Google.
+    GEMINI_PAID_TIER: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
     AI_TIMEOUT_SECONDS: z.coerce.number().int().min(10).max(1800).default(300),
     AI_ALLOWED_MODELS: optionalText,
     AI_USER_DAILY_TOKEN_LIMIT: z.coerce.number().int().min(0).default(500_000),
@@ -70,6 +76,10 @@ const envSchema = z
     }
     if (env.RESEND_API_KEY && !env.EMAIL_FROM) {
       ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "is required when RESEND_API_KEY is set" });
+    }
+    // Real students' work must not go through a plan where the provider may use it.
+    if (env.RELEASE_CHANNEL !== "development" && env.AI_PROVIDER === "gemini" && !env.GEMINI_PAID_TIER) {
+      ctx.addIssue({ code: "custom", path: ["GEMINI_PAID_TIER"], message: "must be true on a beta or production server, because the free plan's content may be used by Google" });
     }
     if (env.RELEASE_CHANNEL === "beta" && env.PAYMENT_ALLOW_LIVE) {
       ctx.addIssue({ code: "custom", path: ["PAYMENT_ALLOW_LIVE"], message: "must be false on a beta server" });

@@ -56,7 +56,7 @@ type Deps = {
   release?: ReleaseService;
 };
 
-const AI_OFF: AiEnv = { AI_PROVIDER: "anthropic", ANTHROPIC_API_KEY: undefined, AI_MODEL_DEFAULT: "", AI_MODEL_COMPLEX: "", AI_MODEL_LIGHT: "", AI_TIMEOUT_SECONDS: 300, AI_DAILY_SPEND_ALERT_USD: undefined, AI_DAILY_SPEND_LIMIT_USD: undefined, REDIS_URL: undefined, AZURE_SPEECH_KEY: undefined, AZURE_SPEECH_REGION: undefined, AZURE_SPEECH_LANGUAGE: "en-GB", AI_ALLOWED_MODELS: undefined, AI_USER_DAILY_TOKEN_LIMIT: 0 };
+const AI_OFF: AiEnv = { AI_PROVIDER: "anthropic", ANTHROPIC_API_KEY: undefined, AI_MODEL_DEFAULT: "", AI_MODEL_COMPLEX: "", AI_MODEL_LIGHT: "", AI_TIMEOUT_SECONDS: 300, AI_DAILY_SPEND_ALERT_USD: undefined, AI_DAILY_SPEND_LIMIT_USD: undefined, REDIS_URL: undefined, AZURE_SPEECH_KEY: undefined, AZURE_SPEECH_REGION: undefined, AZURE_SPEECH_LANGUAGE: "en-GB", AI_ALLOWED_MODELS: undefined, AI_USER_DAILY_TOKEN_LIMIT: 0, GEMINI_API_KEY: undefined, GEMINI_MODEL_DEFAULT: "", GEMINI_MODEL_COMPLEX: "", GEMINI_MODEL_LIGHT: "", GEMINI_PAID_TIER: false };
 
 export function createPlatformServices({ prisma, env, email, logger, storage, auth, notifications, aiEnv, billingEnv, cache, redis = null, queues = null, redisUrl, audioProbe, release = createReleaseService(prisma, { channel: "test" }) }: Deps) {
   const readCache = cache ?? createCache({ maxEntries: 0 });

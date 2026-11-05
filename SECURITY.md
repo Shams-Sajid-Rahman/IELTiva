@@ -64,6 +64,8 @@ Prompt injection can't be fully prevented. These measures limit what a successfu
 
 ## Known gaps
 
+0. **Gemini's free plan isn't for real student data.** Google may use and read what's sent through it. The consent prompt says so, and beta and production servers refuse to start on it unless `GEMINI_PAID_TIER=true`, which should only be set with real paid billing.
+
 1. **The site's strict content security policy is report-only.** It's sent in production but blocks nothing, because enforcing it untested could break pages. Check real browser reports, then switch it to enforcing.
 2. **The CSRF token isn't tied to a session.** The Origin check and SameSite cookies reduce the risk. A session-bound token would be stronger.
 3. **Google-only accounts delete with typed confirmation only**, because they have no password. A stolen open session could schedule deletion, but the 14-day window allows cancellation, and no notification is sent yet to warn the owner. Add an email for this.

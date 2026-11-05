@@ -14,7 +14,7 @@ For the owner and whoever runs final testing. "Built" means the code exists and 
 | Writing and Speaking | Built | Real content |
 | Mock examinations | Built | Real full-length content |
 | AI assessment | Built, feedback only | API keys, a real trial, calibration data |
-| AI tutor | Built | API key, a real trial |
+| AI tutor | Built, on Anthropic or Gemini | API key, a real trial |
 | Payments | Built, sandbox only | Merchant accounts, a real sandbox trial, bKash, receipts, coupons |
 | Analytics | Built | Band charts stay empty until real bands exist |
 | Notifications | Built | Email needs a provider key |

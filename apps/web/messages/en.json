@@ -1528,19 +1528,20 @@
     "consent": {
       "title": "Allow AI processing?",
       "intro": "This is your choice, and you can use IELTiva without it.",
-      "aiPoint": "Your text is sent to our AI provider, Anthropic, to create feedback or tutor replies.",
+      "aiPoint": "Your text is sent to our AI provider, {provider}, to create feedback or tutor replies.",
       "speechPoint": "Your recording is sent to Microsoft Azure AI Speech to create a transcript and experimental pronunciation measures.",
       "retentionPoint": "Recordings are private, and they're deleted automatically after {days} days. You can delete one sooner.",
       "withdrawPoint": "You can change your mind at any time in Settings, under Privacy.",
       "notNow": "Not now",
-      "agree": "I agree"
+      "agree": "I agree",
+      "mayUseData": "This uses a free service. The provider may use what you send to improve its products, and people there may read it. Please do not include personal details."
     },
     "privacy": {
       "tab": "Privacy",
       "intro": "Choose how your work may be used. Your recordings and assessments are private to you.",
       "saved": "Privacy choice saved.",
       "aiTitle": "AI feedback and tutor",
-      "aiBody": "Send your writing and tutor messages to our AI provider, Anthropic.",
+      "aiBody": "Send your writing and tutor messages to our AI provider, {provider}.",
       "calibrationTitle": "Help improve accuracy",
       "calibrationBody": "Allow your work, with identifying details removed, to be considered for checking our AI against human markers.",
       "speechTitle": "Speaking analysis",
@@ -1548,7 +1549,8 @@
       "allow": "Allow",
       "withdraw": "Withdraw and delete",
       "withdrawTitle": "Withdraw and delete your recordings?",
-      "withdrawBody": "This permanently deletes all your stored recordings. Written feedback you've already received stays."
+      "withdrawBody": "This permanently deletes all your stored recordings. Written feedback you've already received stays.",
+      "mayUseData": "This uses a free service. The provider may use what you send to improve its products, and people there may read it. Please do not include personal details."
     },
     "report": {
       "writingNote": "AI practice feedback, not an official IELTS result. It may contain mistakes.",

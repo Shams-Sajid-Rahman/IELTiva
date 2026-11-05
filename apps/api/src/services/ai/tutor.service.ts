@@ -3,6 +3,7 @@ import type { Actor } from "../../types/platform.js";
 import { pageMeta } from "../../utils/api-response.js";
 import { AppError } from "../../utils/app-error.js";
 import type { AiService } from "./ai.service.js";
+import { CONSENT_VERSION } from "./assessment.service.js";
 import { escapeForPrompt } from "./prompts.js";
 import { AiError, type ChatMessage } from "./provider.js";
 import { redactPersonalDetails } from "./redact.js";
@@ -20,7 +21,7 @@ export function createTutorService(prisma: PrismaClient, ai: AiService) {
 
   async function assertAllowed(actor: Actor) {
     if (!ai.isConfigured()) throw new AppError(503, "SERVICE_UNAVAILABLE", "The AI tutor isn't available yet.");
-    const consent = await prisma.userConsent.findFirst({ where: { userId: actor.userId, type: "AI_PROCESSING", revokedAt: null } });
+    const consent = await prisma.userConsent.findFirst({ where: { userId: actor.userId, type: "AI_PROCESSING", revokedAt: null, version: CONSENT_VERSION } });
     if (!consent) throw new AppError(403, "FORBIDDEN", "Please give your consent first.", [{ path: "consent", message: "AI_PROCESSING" }]);
     const since = new Date(Date.now() - 86_400_000);
     const used = await prisma.tutorMessage.count({ where: { role: "user", createdAt: { gte: since }, conversation: { userId: actor.userId } } });

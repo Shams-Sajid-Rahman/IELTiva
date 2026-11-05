@@ -6,6 +6,7 @@ import type { Logger } from "../../utils/logger.js";
 import { recordAudit } from "../audit.service.js";
 import type { PrivateStorage } from "../storage/private-storage.js";
 import { createAiService, TASKS, type TaskKey } from "./ai.service.js";
+import { GeminiProvider } from "./gemini.provider.js";
 import { AnthropicProvider } from "./anthropic.provider.js";
 import { createEntitlementService } from "../billing/entitlement.service.js";
 import { CONSENT_VERSION, createAssessmentService, type AssessmentCredits } from "./assessment.service.js";
@@ -15,12 +16,20 @@ import { createAiQueue, type AiQueue } from "./queue.js";
 import { AzureSpeechProvider, type SpeechProvider } from "./speech.provider.js";
 import { createTutorService } from "./tutor.service.js";
 
-export type AiEnv = Pick<Env, "AI_PROVIDER" | "ANTHROPIC_API_KEY" | "AI_MODEL_DEFAULT" | "AI_MODEL_COMPLEX" | "AI_MODEL_LIGHT" | "AI_TIMEOUT_SECONDS" | "AI_DAILY_SPEND_ALERT_USD" | "AI_DAILY_SPEND_LIMIT_USD" | "REDIS_URL" | "AZURE_SPEECH_KEY" | "AZURE_SPEECH_REGION" | "AZURE_SPEECH_LANGUAGE" | "AI_ALLOWED_MODELS" | "AI_USER_DAILY_TOKEN_LIMIT">;
+export type AiEnv = Pick<Env, "AI_PROVIDER" | "ANTHROPIC_API_KEY" | "AI_MODEL_DEFAULT" | "AI_MODEL_COMPLEX" | "AI_MODEL_LIGHT" | "AI_TIMEOUT_SECONDS" | "AI_DAILY_SPEND_ALERT_USD" | "AI_DAILY_SPEND_LIMIT_USD" | "REDIS_URL" | "AZURE_SPEECH_KEY" | "AZURE_SPEECH_REGION" | "AZURE_SPEECH_LANGUAGE" | "AI_ALLOWED_MODELS" | "AI_USER_DAILY_TOKEN_LIMIT" | "GEMINI_API_KEY" | "GEMINI_MODEL_DEFAULT" | "GEMINI_MODEL_COMPLEX" | "GEMINI_MODEL_LIGHT" | "GEMINI_PAID_TIER">;
 
 function chooseProvider(env: AiEnv): AiProvider | null {
   if (env.AI_PROVIDER === "anthropic" && env.ANTHROPIC_API_KEY) return new AnthropicProvider(env.ANTHROPIC_API_KEY);
+  if (env.AI_PROVIDER === "gemini" && env.GEMINI_API_KEY) return new GeminiProvider(env.GEMINI_API_KEY);
   return null;
 }
+
+/** Which model serves each tier, for whichever provider is in use. */
+const modelsFor = (env: AiEnv) =>
+  env.AI_PROVIDER === "gemini" ? { DEFAULT: env.GEMINI_MODEL_DEFAULT, COMPLEX: env.GEMINI_MODEL_COMPLEX, LIGHT: env.GEMINI_MODEL_LIGHT } : { DEFAULT: env.AI_MODEL_DEFAULT, COMPLEX: env.AI_MODEL_COMPLEX, LIGHT: env.AI_MODEL_LIGHT };
+
+/** Named in the consent wording, so students are told who really receives their work. */
+const providerLabel = (env: AiEnv) => (env.AI_PROVIDER === "gemini" ? "Google (Gemini)" : "Anthropic");
 
 const chooseSpeech = (env: AiEnv): SpeechProvider | null => (env.AZURE_SPEECH_KEY && env.AZURE_SPEECH_REGION ? new AzureSpeechProvider(env.AZURE_SPEECH_KEY, env.AZURE_SPEECH_REGION, env.AZURE_SPEECH_LANGUAGE) : null);
 
@@ -32,7 +41,7 @@ export function createAiRuntime({ prisma, env, storage, logger, queue }: { prism
     logger,
     settings: {
       provider: env.AI_PROVIDER,
-      models: { DEFAULT: env.AI_MODEL_DEFAULT, COMPLEX: env.AI_MODEL_COMPLEX, LIGHT: env.AI_MODEL_LIGHT },
+      models: modelsFor(env),
       timeoutMs: env.AI_TIMEOUT_SECONDS * 1000,
       dailySpendAlertUsd: env.AI_DAILY_SPEND_ALERT_USD ?? null,
       dailySpendLimitUsd: env.AI_DAILY_SPEND_LIMIT_USD ?? null,
@@ -65,7 +74,7 @@ export function createAiRuntime({ prisma, env, storage, logger, queue }: { prism
     async list(actor: Actor) {
       const rows = await prisma.userConsent.findMany({ where: { userId: actor.userId }, select: { type: true, version: true, grantedAt: true, revokedAt: true } });
       const retention = await prisma.platformSetting.findUnique({ where: { key: "retention.speaking_recordings_days" } });
-      return { version: CONSENT_VERSION, consents: rows, recordingRetentionDays: Number(retention?.value ?? 90), aiAvailable: ai.isConfigured() && activeQueue !== null, tutorAvailable: ai.isConfigured(), speechAvailable: ai.isConfigured() && activeQueue !== null && speech !== null };
+      return { aiProviderName: providerLabel(env), providerMayUseData: env.AI_PROVIDER === "gemini" && !env.GEMINI_PAID_TIER, version: CONSENT_VERSION, consents: rows, recordingRetentionDays: Number(retention?.value ?? 90), aiAvailable: ai.isConfigured() && activeQueue !== null, tutorAvailable: ai.isConfigured(), speechAvailable: ai.isConfigured() && activeQueue !== null && speech !== null };
     },
     /** Recorded with its version, so a later change of wording needs a fresh choice. Withdrawing speech consent deletes recordings. */
     async set(actor: Actor, type: "AI_PROCESSING" | "SPEECH_PROCESSING" | "CALIBRATION_USE", granted: boolean) {
@@ -86,14 +95,14 @@ export function createAiRuntime({ prisma, env, storage, logger, queue }: { prism
     async list() {
       const rows = await prisma.aIModelConfiguration.findMany({ orderBy: [{ taskKey: "asc" }, { modelId: "asc" }] });
       return {
-        tasks: Object.entries(TASKS).map(([taskKey, task]) => ({ taskKey, tier: task.tier, defaultModel: { DEFAULT: env.AI_MODEL_DEFAULT, COMPLEX: env.AI_MODEL_COMPLEX, LIGHT: env.AI_MODEL_LIGHT }[task.tier] })),
+        tasks: Object.entries(TASKS).map(([taskKey, task]) => ({ taskKey, tier: task.tier, defaultModel: modelsFor(env)[task.tier] })),
         configurations: rows.map((row) => ({ id: row.id, taskKey: row.taskKey, provider: row.provider, modelId: row.modelId, tier: row.tier, effort: row.effort, isActive: row.isActive })),
       };
     },
     async setForTask(actor: Actor, taskKey: string, modelId: string) {
       if (!(taskKey in TASKS)) throw new AppError(404, "NOT_FOUND", "This task doesn't exist.");
       // Only approved models can be chosen, so a typed value can't move a task onto an unexpected or much more expensive model.
-      const allowed = env.AI_ALLOWED_MODELS ? env.AI_ALLOWED_MODELS.split(",").map((value) => value.trim()) : [env.AI_MODEL_DEFAULT, env.AI_MODEL_COMPLEX, env.AI_MODEL_LIGHT];
+      const allowed = env.AI_ALLOWED_MODELS ? env.AI_ALLOWED_MODELS.split(",").map((value) => value.trim()) : Object.values(modelsFor(env));
       if (!allowed.includes(modelId)) throw new AppError(400, "VALIDATION_ERROR", "This model isn't on the approved list.");
       const task = TASKS[taskKey as TaskKey];
       const row = await prisma.$transaction(async (tx) => {
